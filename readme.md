@@ -103,12 +103,29 @@ budget-mvp-backend/
 
 ---
 
-## 🔜 Próximos pasos
+## 🖥️ Backend base creado
 
-* Diseñar modelo de datos (Month, Category, Transaction, etc.)
-* Inicializar backend (Fastify + Prisma)
-* Implementar endpoints mínimos
+Estructura:
 
+budget-mvp-backend/
+├── backend/
+│   ├── src/
+│   │   └── server.ts
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── .gitignore
+├── infra/
+│   └── docker-compose.yml
+└── README.md
+
+
+- Servidor Fastify mínimo:
+
+- Endpoint /health
+
+- TypeScript funcionando
+
+npm run dev levanta el server
 ---
 
 > Este proyecto es intencionalmente simple. La complejidad se agrega solo cuando aporta valor.
