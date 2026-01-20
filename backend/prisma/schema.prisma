@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum CategoryKind {
+  EXPENSE
+  TRACKING
+}
+
+enum PaymentMethod {
+  CREDIT_BANAMEX
+  CREDIT_NUBANK
+  DEBIT_BBVA
+  CASH
+}
+
+model Month {
+  id        String   @id @default(uuid())
+  year      Int
+  month     Int
+  createdAt DateTime @default(now())
+
+  incomes      Income[]
+  assignments  BudgetAssignment[]
+  transactions Transaction[]
+
+  @@unique([year, month])
+  @@index([year, month])
+}
+
+model CategoryGroup {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  sortOrder Int        @default(0)
+
+  categories Category[]
+}
+
+model Category {
+  id        String       @id @default(uuid())
+  groupId   String
+  name      String
+  kind      CategoryKind
+  isActive  Boolean      @default(true)
+  sortOrder Int          @default(0)
+
+  group        CategoryGroup      @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  assignments  BudgetAssignment[]
+  transactions Transaction[]
+
+  @@unique([groupId, name])
+  @@index([groupId])
+  @@index([kind])
+}
+
+model Income {
+  id      String   @id @default(uuid())
+  monthId String
+  date    DateTime @db.Date
+  amount  Decimal  @db.Decimal(12, 2)
+  source  String?
+  note    String?
+
+  month Month @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@index([monthId])
+  @@index([date])
+}
+
+model BudgetAssignment {
+  id         String  @id @default(uuid())
+  monthId    String
+  categoryId String
+  amount     Decimal @db.Decimal(12, 2)
+
+  month    Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([monthId, categoryId])
+  @@index([categoryId])
+}
+
+model Transaction {
+  id            String        @id @default(uuid())
+  monthId       String
+  date          DateTime      @db.Date
+  amount        Decimal       @db.Decimal(12, 2)
+  categoryId    String
+  paymentMethod PaymentMethod
+  description   String
+  note          String?
+  isReconciled  Boolean       @default(false)
+
+  month    Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([monthId])
+  @@index([categoryId])
+  @@index([date])
+  @@index([paymentMethod])
+}

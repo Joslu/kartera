@@ -103,29 +103,28 @@ budget-mvp-backend/
 
 ---
 
-## 🖥️ Backend base creado
+## ✅ Estado actual
 
-Estructura:
+* PostgreSQL corre en Docker (infra lista)
+* Backend base con Fastify + TypeScript
+* Prisma conectado a Postgres
+* Seeds creados (CategoryGroups + Categories)
+* Endpoint inicial funcionando: `GET /health`, `GET /categories`
 
-budget-mvp-backend/
-├── backend/
-│   ├── src/
-│   │   └── server.ts
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── .gitignore
-├── infra/
-│   └── docker-compose.yml
-└── README.md
+---
 
+## 🧾 Notas rápidas
 
-- Servidor Fastify mínimo:
+* Los IDs son UUIDs (ej. `034fea7d-c344-4f79-aa48-b44f742726bf`). Son largos a propósito: evitan colisiones y se pueden generar sin depender de un contador global.
 
-- Endpoint /health
+---
 
-- TypeScript funcionando
+## 🔜 Próximos pasos
 
-npm run dev levanta el server
+* `GET /category-groups` (si la UI lo necesita)
+* Endpoints de Month (`POST /months`, `GET /months`)
+* Luego Income, BudgetAssignment, Transaction, y Month summary
+
 ---
 
 > Este proyecto es intencionalmente simple. La complejidad se agrega solo cuando aporta valor.
