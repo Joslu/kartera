@@ -111,12 +111,60 @@ budget-mvp-backend/
 * Seeds creados (CategoryGroups + Categories)
 * Endpoint inicial funcionando: `GET /health`, `GET /categories`
 
+
+## ✅ Funcionalidad implementada
+
+El backend ya soporta el flujo completo de un presupuesto mensual:
+
+### Entidades principales
+- Month (año + mes)
+- CategoryGroup y Category
+- Income
+- BudgetAssignment
+- Transaction
+
+### Endpoints disponibles
+- `GET /health`
+- `GET /categories`
+- `GET /months`
+- `POST /months`
+- `POST /incomes`
+- `GET /months/:monthId/incomes`
+- `POST /budget-assignments`
+- `GET /months/:monthId/assignments`
+- `POST /transactions`
+- `GET /months/:monthId/transactions`
+- `GET /months/:monthId/unidentified`
+- `PATCH /transactions/:id`
+- `GET /months/:monthId/summary`
+
+### Flujo soportado
+- Registrar ingresos por mes
+- Asignar presupuesto por categoría
+- Registrar transacciones rápidamente (por default caen en “No identificado”)
+- Re-categorizar transacciones después
+- Separar gasto real (EXPENSE) vs movimientos (TRACKING)
+- Obtener resumen mensual con:
+  - ingresos
+  - asignado
+  - gastado
+  - disponible por categoría
+
 ---
 
 ## 🧾 Notas rápidas
 
 * Los IDs son UUIDs (ej. `034fea7d-c344-4f79-aa48-b44f742726bf`). Son largos a propósito: evitan colisiones y se pueden generar sin depender de un contador global.
 
+
+- Las transacciones usan `amount` siempre positivo.
+- El tipo de impacto se determina por `Category.kind`:
+  - `EXPENSE` consume presupuesto
+  - `TRACKING` solo se rastrea
+- La categoría “No identificado” existe como estado temporal.
+- `date` representa la fecha contable.
+- `createdAt` representa cuándo se registró la transacción.
+- IDs usan UUID para evitar colisiones y permitir escalabilidad futura.
 ---
 
 ## 🔜 Próximos pasos

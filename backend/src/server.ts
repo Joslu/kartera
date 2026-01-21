@@ -1,5 +1,10 @@
 import Fastify from "fastify";
 import { categoriesRoutes } from "./routes/categories";
+import { monthsRoutes } from "./routes/month";
+import { incomesRoutes } from "./routes/incomes";
+import { assignmentsRoutes } from "./routes/assignments";
+import { transactionsRoutes } from "./routes/transactions";
+import { summaryRoutes } from "./routes/summary";
 
 async function main() {
   const app = Fastify({ logger: true });
@@ -7,6 +12,11 @@ async function main() {
   app.get("/health", async () => ({ ok: true }));
 
   await app.register(categoriesRoutes);
+  await app.register(monthsRoutes);
+  await app.register(incomesRoutes);
+  await app.register(assignmentsRoutes);
+  await app.register(transactionsRoutes);
+  await app.register(summaryRoutes);
 
   const port = Number(process.env.PORT ?? 3000);
   const host = process.env.HOST ?? "0.0.0.0";

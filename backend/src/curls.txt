@@ -1,0 +1,55 @@
+c70e928d-4fb8-4ac5-b916-261b5f1c3d79
+
+
+curl -X POST http://localhost:3000/months \
+  -H "Content-Type: application/json" \
+  -d '{"year":2026,"month":1}'
+
+
+
+
+--- TEST 
+
+
+curl -X POST http://localhost:3000/incomes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "monthId":"c70e928d-4fb8-4ac5-b916-261b5f1c3d79",
+    "date":"2026-01-15",
+    "amount": 15000,
+    "source":"Quincena 15"
+  }'
+
+
+
+curl http://localhost:3000/months/c70e928d-4fb8-4ac5-b916-261b5f1c3d79/incomes
+
+curl http://localhost:3000/months/categories
+
+034fea7d-c344-4f79-aa48-b44f742726bf
+
+
+curl -X POST http://localhost:3000/budget-assignments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "monthId":"c70e928d-4fb8-4ac5-b916-261b5f1c3d79",
+    "categoryId":"034fea7d-c344-4f79-aa48-b44f742726bf",
+    "amount": 5000
+  }'
+
+
+
+curl http://localhost:3000/months/c70e928d-4fb8-4ac5-b916-261b5f1c3d79/assignments
+
+
+
+curl -X POST http://localhost:3000/transactions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "monthId":"c70e928d-4fb8-4ac5-b916-261b5f1c3d79",
+    "date":"2026-01-16",
+    "amount": 250,
+    "description":"Café",
+    "paymentMethod":"CASH"
+  }'
+

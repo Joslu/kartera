@@ -96,6 +96,7 @@ model Transaction {
   description   String
   note          String?
   isReconciled  Boolean       @default(false)
+  createdAt     DateTime      @default(now())
 
   month    Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
@@ -104,4 +105,6 @@ model Transaction {
   @@index([categoryId])
   @@index([date])
   @@index([paymentMethod])
+  @@index([createdAt])
 }
+
