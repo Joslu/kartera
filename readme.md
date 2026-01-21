@@ -1,65 +1,53 @@
 # Budget MVP – Backend
 
-MVP de finanzas personales basado en **presupuesto mensual**, inspirado en YNAB, con enfoque **minimalista** y backend-first.
+Backend MVP para una app de **finanzas personales basada en presupuesto mensual**, inspirada en YNAB pero con un enfoque **minimalista y educativo**.
 
-Proyecto pensado como **aprendizaje continuo**, construido paso a paso, sin sobre-ingeniería.
+Este proyecto está construido como un **proyecto de aprendizaje continuo**, priorizando claridad, reglas de negocio explícitas y código ejecutable.
 
 ---
 
 ## 🎯 Objetivo
 
-Construir un backend que permita:
+Proveer un backend que permita:
 
 * Usar el **mes** como unidad principal
 * Registrar **ingresos**
 * Asignar **presupuesto por categoría**
-* Registrar **transacciones**
-* Obtener un **resumen mensual** claro (ingresos, gastado, disponible)
+* Registrar **transacciones** (gastos y movimientos)
+* Re-categorizar transacciones
+* Obtener un **resumen mensual** claro y confiable
 
-Sin autenticación (single user, local).
+> Sin autenticación (single user, local).
 
 ---
 
 ## 🧠 Reglas de negocio
 
-* El gasto pertenece al **mes donde ocurre** (según fecha)
-* **"No identificado"** es una categoría temporal
-* El **pago de TDC es una categoría** (no es gasto nuevo)
-* Distinguir:
+* El **mes** es el contenedor principal del sistema.
+* Un gasto pertenece al **mes donde ocurre** (según `date`).
+* Todas las transacciones tienen `amount` **positivo**.
+* El impacto lo define la categoría:
 
-  * **Gasto real** → consume presupuesto
-  * **Movimientos / tracking** → pagos, transferencias, retiros
+  * `EXPENSE` → consume presupuesto
+  * `TRACKING` → solo se rastrea (pagos, transferencias, retiros)
+* **“No identificado”** es una categoría temporal.
+* El **pago de TDC es una categoría**, no un gasto nuevo.
+* `date` = fecha contable
+* `createdAt` = cuándo se registró la transacción
 
 ---
 
 ## 🏗️ Stack técnico
 
-### Backend
-
 * Node.js + TypeScript
 * Fastify
 * Prisma ORM
 * PostgreSQL
-
-### Infraestructura
-
 * Docker Compose
-* DBeaver (cliente de base de datos)
+* DBeaver (cliente DB)
+* npm (package manager)
 
----
-
-## 📱 Enfoque de producto
-
-* **Laptop / Dashboard web**:
-
-  * Crear meses
-  * Asignar presupuestos
-  * Ver resúmenes
-
-* **Celular**:
-
-  * Registrar gastos rápido
-  * Sin dashboards complejos
+Decisión explícita: **CommonJS (sin ESM)** para reducir complejidad.
 
 ---
 
@@ -67,7 +55,7 @@ Sin autenticación (single user, local).
 
 PostgreSQL corre en Docker.
 
-**Credenciales (local):**
+**Credenciales locales:**
 
 * Host: `localhost`
 * Port: `5432`
@@ -83,95 +71,221 @@ postgresql://budget:budget@localhost:5432/budget
 
 ---
 
-## 📁 Estructura actual
+## 📁 Estructura del proyecto
 
 ```
 budget-mvp-backend/
+├── README.md
+├── .gitignore
 ├── infra/
 │   └── docker-compose.yml
-└── README.md
+└── backend/
+    ├── package.json
+    ├── tsconfig.json
+    ├── .env            # NO versionado
+    ├── prisma/
+    │   ├── schema.prisma
+    │   ├── seed.ts
+    │   └── migrations/
+    └── src/
+        ├── server.ts
+        ├── db.ts
+        └── routes/
+            ├── categories.ts
+            ├── months.ts
+            ├── incomes.ts
+            ├── assignments.ts
+            ├── transactions.ts
+            └── summary.ts
 ```
 
 ---
 
-## 🧭 Metodología
+## 🌱 Seed inicial
 
-* Avanzar **paso a paso**
-* No generar todo de golpe
-* Priorizar código ejecutable
-* Mantener el sistema simple y entendible
+Se crean automáticamente:
 
----
+### CategoryGroups
 
-## ✅ Estado actual
+* Hogar
+* Esenciales
+* Transporte
+* Estilo de vida
+* Estabilidad/Metas
+* Movimientos
 
-* PostgreSQL corre en Docker (infra lista)
-* Backend base con Fastify + TypeScript
-* Prisma conectado a Postgres
-* Seeds creados (CategoryGroups + Categories)
-* Endpoint inicial funcionando: `GET /health`, `GET /categories`
+### Categories clave
 
+* No identificado (EXPENSE)
+* Pago TDC Banamex (TRACKING)
+* Pago TDC Nubank (TRACKING)
+* Retiro efectivo (Débito BBVA) (TRACKING)
 
-## ✅ Funcionalidad implementada
-
-El backend ya soporta el flujo completo de un presupuesto mensual:
-
-### Entidades principales
-- Month (año + mes)
-- CategoryGroup y Category
-- Income
-- BudgetAssignment
-- Transaction
-
-### Endpoints disponibles
-- `GET /health`
-- `GET /categories`
-- `GET /months`
-- `POST /months`
-- `POST /incomes`
-- `GET /months/:monthId/incomes`
-- `POST /budget-assignments`
-- `GET /months/:monthId/assignments`
-- `POST /transactions`
-- `GET /months/:monthId/transactions`
-- `GET /months/:monthId/unidentified`
-- `PATCH /transactions/:id`
-- `GET /months/:monthId/summary`
-
-### Flujo soportado
-- Registrar ingresos por mes
-- Asignar presupuesto por categoría
-- Registrar transacciones rápidamente (por default caen en “No identificado”)
-- Re-categorizar transacciones después
-- Separar gasto real (EXPENSE) vs movimientos (TRACKING)
-- Obtener resumen mensual con:
-  - ingresos
-  - asignado
-  - gastado
-  - disponible por categoría
+El seed es **idempotente** (puede correrse varias veces).
 
 ---
 
-## 🧾 Notas rápidas
+## ▶️ Cómo correr el proyecto
 
-* Los IDs son UUIDs (ej. `034fea7d-c344-4f79-aa48-b44f742726bf`). Son largos a propósito: evitan colisiones y se pueden generar sin depender de un contador global.
+### 1) Infraestructura
 
+```bash
+cd infra
+docker compose up -d
+```
 
-- Las transacciones usan `amount` siempre positivo.
-- El tipo de impacto se determina por `Category.kind`:
-  - `EXPENSE` consume presupuesto
-  - `TRACKING` solo se rastrea
-- La categoría “No identificado” existe como estado temporal.
-- `date` representa la fecha contable.
-- `createdAt` representa cuándo se registró la transacción.
-- IDs usan UUID para evitar colisiones y permitir escalabilidad futura.
+### 2) Backend
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+### 3) Migraciones y seed
+
+```bash
+npx prisma migrate dev
+npx prisma db seed
+```
+
 ---
 
-## 🔜 Próximos pasos
+## 🌐 Endpoints disponibles
 
-* `GET /category-groups` (si la UI lo necesita)
-* Endpoints de Month (`POST /months`, `GET /months`)
-* Luego Income, BudgetAssignment, Transaction, y Month summary
+### Health
+
+```bash
+GET /health
+```
+
+---
+
+### Categories
+
+```bash
+GET /categories
+```
+
+---
+
+### Months
+
+```bash
+POST /months
+{
+  "year": 2026,
+  "month": 1
+}
+```
+
+```bash
+GET /months
+```
+
+---
+
+### Incomes
+
+```bash
+POST /incomes
+{
+  "monthId": "MONTH_ID",
+  "date": "2026-01-15",
+  "amount": 15000,
+  "source": "Quincena 15"
+}
+```
+
+```bash
+GET /months/:monthId/incomes
+```
+
+---
+
+### Budget Assignments
+
+```bash
+POST /budget-assignments
+{
+  "monthId": "MONTH_ID",
+  "categoryId": "CATEGORY_ID",
+  "amount": 5000
+}
+```
+
+```bash
+GET /months/:monthId/assignments
+```
+
+---
+
+### Transactions
+
+Crear transacción (categoría opcional):
+
+```bash
+POST /transactions
+{
+  "monthId": "MONTH_ID",
+  "date": "2026-01-16",
+  "amount": 250,
+  "description": "Café",
+  "paymentMethod": "CASH"
+}
+```
+
+Listar transacciones del mes:
+
+```bash
+GET /months/:monthId/transactions
+```
+
+---
+
+### Re-categorización
+
+Listar transacciones no identificadas:
+
+```bash
+GET /months/:monthId/unidentified
+```
+
+Actualizar transacción:
+
+```bash
+PATCH /transactions/:id
+{
+  "categoryId": "CATEGORY_ID",
+  "note": "revisado",
+  "isReconciled": true
+}
+```
+
+---
+
+### Month Summary
+
+```bash
+GET /months/:monthId/summary
+```
+
+Devuelve:
+
+* ingresos totales
+* presupuesto asignado
+* gasto real (EXPENSE)
+* movimientos (TRACKING)
+* detalle por categoría (assigned / spent / available)
+
+---
+
+## 🔜 Próximos pasos (cuando se retome)
+
+* Derivar `monthId` automáticamente desde `date`
+* Mejorar summary agrupado por CategoryGroup
+* UI en React (dashboard mensual)
+* PWA / formulario móvil para captura rápida
 
 ---
 

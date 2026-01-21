@@ -5,11 +5,17 @@ import { incomesRoutes } from "./routes/incomes";
 import { assignmentsRoutes } from "./routes/assignments";
 import { transactionsRoutes } from "./routes/transactions";
 import { summaryRoutes } from "./routes/summary";
+import cors from "@fastify/cors";
 
 async function main() {
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true }));
+await app.register(cors, {
+  origin: ["http://localhost:5173"],
+  methods: ["GET", "PATCH", "POST", "DELETE", "OPTIONS"],
+});
+  
 
   await app.register(categoriesRoutes);
   await app.register(monthsRoutes);

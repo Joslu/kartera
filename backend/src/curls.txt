@@ -48,8 +48,18 @@ curl -X POST http://localhost:3000/transactions \
   -d '{
     "monthId":"c70e928d-4fb8-4ac5-b916-261b5f1c3d79",
     "date":"2026-01-16",
-    "amount": 250,
+    "amount": 50,
     "description":"Café",
     "paymentMethod":"CASH"
   }'
+
+
+curl http://localhost:3000/months/MONTH_ID/summary
+
+c70e928d-4fb8-4ac5-b916-261b5f1c3d79
+
+curl http://localhost:3000/months/c70e928d-4fb8-4ac5-b916-261b5f1c3d79/summary
+
+
+curl http://localhost:3000/months/c70e928d-4fb8-4ac5-b916-261b5f1c3d79/unidentified
 
