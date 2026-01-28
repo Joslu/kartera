@@ -48,4 +48,16 @@ export async function monthsRoutes(app: FastifyInstance) {
       return reply.status(500).send({ error: "Internal Server Error" });
     }
   });
+
+  // DELETE /months/:id
+  // Elimina el mes y cascada de datos relacionados
+  app.delete<{ Params: { id: string } }>("/months/:id", async (req, reply) => {
+    const { id } = req.params;
+
+    const month = await prisma.month.findUnique({ where: { id } });
+    if (!month) return reply.status(404).send({ error: "month not found" });
+
+    await prisma.month.delete({ where: { id } });
+    return reply.status(204).send();
+  });
 }

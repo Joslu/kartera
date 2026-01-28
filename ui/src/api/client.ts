@@ -1,9 +1,14 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const hasBody =
+    init?.body !== undefined &&
+    init?.body !== null &&
+    !(typeof init.body === "string" && init.body.length === 0);
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
-      "Content-Type": "application/json",
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...(init?.headers ?? {}),
     },
     ...init,

@@ -9,6 +9,11 @@ type CreateIncomeBody = {
   note?: string;
 };
 
+type UpdateIncomeBody = {
+  date?: string; // "YYYY-MM-DD"
+  amount?: number; // > 0
+};
+
 function isValidISODateOnly(s: string) {
   // Minimal: YYYY-MM-DD
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -64,5 +69,47 @@ export async function incomesRoutes(app: FastifyInstance) {
     });
 
     return { month, incomes };
+  });
+
+  // PATCH /incomes/:id
+  app.patch<{ Params: { id: string }; Body: UpdateIncomeBody }>("/incomes/:id", async (req, reply) => {
+    const { id } = req.params;
+    const body = req.body ?? ({} as UpdateIncomeBody);
+
+    const existing = await prisma.income.findUnique({ where: { id } });
+    if (!existing) return reply.status(404).send({ error: "income not found" });
+
+    if (body.date !== undefined) {
+      if (typeof body.date !== "string" || !isValidISODateOnly(body.date)) {
+        return reply.status(400).send({ error: "date must be YYYY-MM-DD" });
+      }
+    }
+
+    if (body.amount !== undefined) {
+      if (typeof body.amount !== "number" || !Number.isFinite(body.amount) || body.amount <= 0) {
+        return reply.status(400).send({ error: "amount must be a number > 0" });
+      }
+    }
+
+    const updated = await prisma.income.update({
+      where: { id },
+      data: {
+        date: body.date === undefined ? undefined : new Date(body.date),
+        amount: body.amount === undefined ? undefined : body.amount,
+      },
+    });
+
+    return updated;
+  });
+
+  // DELETE /incomes/:id
+  app.delete<{ Params: { id: string } }>("/incomes/:id", async (req, reply) => {
+    const { id } = req.params;
+
+    const existing = await prisma.income.findUnique({ where: { id } });
+    if (!existing) return reply.status(404).send({ error: "income not found" });
+
+    await prisma.income.delete({ where: { id } });
+    return reply.status(204).send();
   });
 }

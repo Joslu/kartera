@@ -18,6 +18,7 @@ type UpdateTransactionBody = {
   note?: string | null;
   isReconciled?: boolean;
   description?: string;
+  date?: string; // YYYY-MM-DD
 };
 
 
@@ -157,6 +158,12 @@ app.patch<{ Params: { id: string }; Body: UpdateTransactionBody }>(
       if (!cat.isActive) return reply.status(400).send({ error: "category is not active" });
     }
 
+    if (body.date !== undefined) {
+      if (typeof body.date !== "string" || !isValidISODateOnly(body.date)) {
+        return reply.status(400).send({ error: "date must be YYYY-MM-DD" });
+      }
+    }
+
     const updated = await prisma.transaction.update({
       where: { id },
       data: {
@@ -165,6 +172,7 @@ app.patch<{ Params: { id: string }; Body: UpdateTransactionBody }>(
         note: body.note === undefined ? undefined : body.note?.trim() ?? null,
         description:
           body.description === undefined ? undefined : body.description.trim(),
+        date: body.date === undefined ? undefined : new Date(body.date),
       },
       include: { category: { include: { group: true } } },
     });
@@ -172,6 +180,17 @@ app.patch<{ Params: { id: string }; Body: UpdateTransactionBody }>(
     return updated;
   }
 );
+
+// DELETE /transactions/:id
+app.delete<{ Params: { id: string } }>("/transactions/:id", async (req, reply) => {
+  const { id } = req.params;
+
+  const existing = await prisma.transaction.findUnique({ where: { id } });
+  if (!existing) return reply.status(404).send({ error: "transaction not found" });
+
+  await prisma.transaction.delete({ where: { id } });
+  return reply.status(204).send();
+});
 
 
 
