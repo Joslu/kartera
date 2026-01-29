@@ -50,6 +50,7 @@ type DebitBalance = {
 export default function CreditCards() {
   const [cards, setCards] = useState<CardSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [debitLoading, setDebitLoading] = useState(true);
   const [cycleMap, setCycleMap] = useState<Record<string, CardCycle>>({});
   const [cycleLoadingId, setCycleLoadingId] = useState<string | null>(null);
   const [cycleMode, setCycleMode] = useState<"current" | "previous">("current");
@@ -63,12 +64,8 @@ export default function CreditCards() {
     (async () => {
       setLoading(true);
       try {
-        const [items, balances] = await Promise.all([
-          getCreditCardSummary(cycleMode),
-          getPaymentMethodBalances(),
-        ]);
+        const items = await getCreditCardSummary(cycleMode);
         setCards(items);
-        setDebitBalances(balances);
         setCycleMap({});
       } catch (e: any) {
         setToast({
@@ -80,6 +77,23 @@ export default function CreditCards() {
       }
     })();
   }, [cycleMode]);
+
+  useEffect(() => {
+    (async () => {
+      setDebitLoading(true);
+      try {
+        const balances = await getPaymentMethodBalances();
+        setDebitBalances(balances);
+      } catch (e: any) {
+        setToast({
+          type: "error",
+          message: e?.message ?? "No se pudieron cargar cuentas de debito",
+        });
+      } finally {
+        setDebitLoading(false);
+      }
+    })();
+  }, []);
 
   async function toggleCycle(cardId: string) {
     if (cycleMap[cardId]) {
@@ -122,35 +136,12 @@ export default function CreditCards() {
           </p>
         </div>
 
-        <div className="mb-4 flex items-center gap-2">
-          <button
-            className={`h-8 rounded-full px-3 text-xs ${
-              cycleMode === "current"
-                ? "bg-zinc-900 text-white"
-                : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-            }`}
-            onClick={() => setCycleMode("current")}
-          >
-            Ciclo actual
-          </button>
-          <button
-            className={`h-8 rounded-full px-3 text-xs ${
-              cycleMode === "previous"
-                ? "bg-zinc-900 text-white"
-                : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-            }`}
-            onClick={() => setCycleMode("previous")}
-          >
-            Ciclo anterior
-          </button>
-        </div>
-
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium text-zinc-900">
-                  Estado de tarjetas
+                  Tarjetas de Crédito
                 </div>
                 <div className="text-xs text-zinc-600">
                   GET /credit-cards/summary
@@ -162,6 +153,28 @@ export default function CreditCards() {
             </div>
           </CardHeader>
           <CardBody>
+            <div className="mb-3 flex items-center gap-2">
+              <button
+                className={`h-8 rounded-full px-3 text-xs ${
+                  cycleMode === "current"
+                    ? "bg-zinc-900 text-white"
+                    : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+                onClick={() => setCycleMode("current")}
+              >
+                Ciclo actual
+              </button>
+              <button
+                className={`h-8 rounded-full px-3 text-xs ${
+                  cycleMode === "previous"
+                    ? "bg-zinc-900 text-white"
+                    : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+                onClick={() => setCycleMode("previous")}
+              >
+                Ciclo anterior
+              </button>
+            </div>
             {loading ? (
               <div className="text-sm text-zinc-600">Cargando…</div>
             ) : cards.length === 0 ? (
@@ -308,7 +321,7 @@ export default function CreditCards() {
               </div>
             </CardHeader>
             <CardBody>
-              {loading ? (
+              {debitLoading ? (
                 <div className="text-sm text-zinc-600">Cargando…</div>
               ) : debitBalances.length === 0 ? (
                 <div className="text-sm text-zinc-600">
