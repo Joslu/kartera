@@ -1,5 +1,14 @@
 import { api } from "./client";
-import type { Category, CategoryGroup, Income, MonthSummary, Transaction } from "./types";
+import type {
+  Category,
+  CategoryGroup,
+  CreditCard,
+  Income,
+  MonthSummary,
+  PaymentMethod,
+  PaymentMethodType,
+  Transaction,
+} from "./types";
 
 function asArray<T>(v: any): T[] {
   if (Array.isArray(v)) return v;
@@ -70,7 +79,7 @@ export function patchTransaction(
   body: Partial<
     Pick<
       Transaction,
-      "categoryId" | "note" | "isReconciled" | "date" | "amount" | "description" | "paymentMethod"
+      "categoryId" | "note" | "isReconciled" | "date" | "amount" | "description" | "paymentMethodId"
     >
   >
 ) {
@@ -139,6 +148,7 @@ export function createIncome(body: {
   date: string; // YYYY-MM-DD
   amount: number; // > 0
   source: string;
+  paymentMethodId: string;
 }) {
   return api<{ id: string }>(`/incomes`, {
     method: "POST",
@@ -148,7 +158,7 @@ export function createIncome(body: {
 
 export function patchIncome(
   id: string,
-  body: Partial<Pick<Income, "date" | "amount">>,
+  body: Partial<Pick<Income, "date" | "amount" | "paymentMethodId">>,
 ) {
   return api<Income>(`/incomes/${id}`, {
     method: "PATCH",
@@ -164,7 +174,7 @@ export function createTransaction(body: {
   date: string; // YYYY-MM-DD
   amount: number; // > 0
   description: string;
-  paymentMethod: string; // ajusta a tu enum si lo tipas
+  paymentMethodId: string;
   categoryId?: string;
   note?: string;
   isReconciled?: boolean;
@@ -173,6 +183,120 @@ export function createTransaction(body: {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function getPaymentMethods() {
+  const res = await api<any>("/payment-methods");
+  return asArray<PaymentMethod>(res);
+}
+
+export function createPaymentMethod(body: {
+  name: string;
+  type: PaymentMethodType;
+  isActive?: boolean;
+  sortOrder?: number;
+}) {
+  return api<PaymentMethod>(`/payment-methods`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function patchPaymentMethod(
+  id: string,
+  body: Partial<Pick<PaymentMethod, "name" | "type" | "isActive" | "sortOrder">>,
+) {
+  return api<PaymentMethod>(`/payment-methods/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deletePaymentMethod(id: string) {
+  return api<void>(`/payment-methods/${id}`, { method: "DELETE" });
+}
+
+export async function getCreditCards() {
+  const res = await api<any>("/credit-cards");
+  return asArray<CreditCard>(res);
+}
+
+export function createCreditCard(body: {
+  paymentMethodId: string;
+  cutoffDay: number;
+  dueDay?: number | null;
+  paymentCategoryId?: string | null;
+}) {
+  return api<CreditCard>(`/credit-cards`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function patchCreditCard(
+  id: string,
+  body: Partial<Pick<CreditCard, "cutoffDay" | "dueDay" | "paymentCategoryId">>,
+) {
+  return api<CreditCard>(`/credit-cards/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteCreditCard(id: string) {
+  return api<void>(`/credit-cards/${id}`, { method: "DELETE" });
+}
+
+export async function getCreditCardSummary(cycle?: "current" | "previous") {
+  const qs = cycle ? `?cycle=${cycle}` : "";
+  const res = await api<any>(`/credit-cards/summary${qs}`);
+  return asArray<
+    CreditCard & {
+      paymentMethodName: string;
+      cycleStart: string;
+      cycleEnd: string;
+      paymentWindowStart?: string | null;
+      paymentWindowEnd?: string | null;
+      isInPaymentWindow?: boolean;
+      spent: number;
+      paid: number;
+      debt: number;
+    }
+  >(res);
+}
+
+export async function getPaymentMethodBalances() {
+  const res = await api<any>("/payment-methods/balances");
+  return asArray<
+    PaymentMethod & { income: number; expense: number; balance: number }
+  >(res);
+}
+
+export async function getCreditCardCycle(cardId: string, cycle?: "current" | "previous") {
+  const qs = cycle ? `?cycle=${cycle}` : "";
+  return api<{
+    card: {
+      id: string;
+      paymentMethodId: string;
+      paymentMethodName: string;
+      cutoffDay: number;
+      dueDay?: number | null;
+      paymentCategoryName?: string | null;
+      paymentWindowStart?: string | null;
+      paymentWindowEnd?: string | null;
+      isInPaymentWindow?: boolean;
+    };
+    cycleStart: string;
+    cycleEnd: string;
+    items: Array<{
+      id: string;
+      date: string;
+      amount: number;
+      description: string;
+      kind: "SPENT" | "PAYMENT";
+      categoryName?: string | null;
+    }>;
+  }>(`/credit-cards/${cardId}/cycle${qs}`);
 }
 
 export function deleteTransaction(id: string) {

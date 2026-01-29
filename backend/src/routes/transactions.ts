@@ -1,13 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
-import { PaymentMethod } from "@prisma/client";
-
 type CreateTransactionBody = {
   monthId: string;
   date: string; // YYYY-MM-DD
   amount: number; // > 0
   description: string;
-  paymentMethod: PaymentMethod;
+  paymentMethodId: string;
   categoryId?: string; // opcional => default "No identificado"
   note?: string;
   isReconciled?: boolean;
@@ -19,6 +17,7 @@ type UpdateTransactionBody = {
   isReconciled?: boolean;
   description?: string;
   date?: string; // YYYY-MM-DD
+  paymentMethodId?: string;
 };
 
 
@@ -40,7 +39,7 @@ export async function transactionsRoutes(app: FastifyInstance) {
   // POST /transactions
   app.post<{ Body: CreateTransactionBody }>("/transactions", async (req, reply) => {
     const body = req.body ?? ({} as CreateTransactionBody);
-    const { monthId, date, amount, description, paymentMethod, categoryId, note, isReconciled } = body;
+    const { monthId, date, amount, description, paymentMethodId, categoryId, note, isReconciled } = body;
 
     if (!monthId || typeof monthId !== "string") {
       return reply.status(400).send({ error: "monthId is required" });
@@ -54,12 +53,21 @@ export async function transactionsRoutes(app: FastifyInstance) {
     if (!description || typeof description !== "string" || !description.trim()) {
       return reply.status(400).send({ error: "description is required" });
     }
-    if (!paymentMethod || typeof paymentMethod !== "string") {
-      return reply.status(400).send({ error: "paymentMethod is required" });
+    if (!paymentMethodId || typeof paymentMethodId !== "string") {
+      return reply.status(400).send({ error: "paymentMethodId is required" });
     }
 
     const month = await prisma.month.findUnique({ where: { id: monthId } });
     if (!month) return reply.status(404).send({ error: "month not found" });
+
+    const paymentMethod = await prisma.paymentMethod.findUnique({
+      where: { id: paymentMethodId },
+      select: { id: true, isActive: true },
+    });
+    if (!paymentMethod) return reply.status(404).send({ error: "payment method not found" });
+    if (!paymentMethod.isActive) {
+      return reply.status(400).send({ error: "payment method is not active" });
+    }
 
     let finalCategoryId = categoryId;
 
@@ -77,12 +85,12 @@ export async function transactionsRoutes(app: FastifyInstance) {
         date: new Date(date),
         amount,
         description: description.trim(),
-        paymentMethod,
+        paymentMethodId,
         categoryId: finalCategoryId,
         note: note?.trim() || null,
         isReconciled: typeof isReconciled === "boolean" ? isReconciled : false,
       },
-      include: { category: { include: { group: true } } },
+      include: { category: { include: { group: true } }, paymentMethod: true },
     });
 
     return reply.status(201).send(created);
@@ -97,42 +105,33 @@ export async function transactionsRoutes(app: FastifyInstance) {
 
     const transactions = await prisma.transaction.findMany({
       where: { monthId },
-      include: { category: { include: { group: true } } },
+      include: { category: { include: { group: true } }, paymentMethod: true },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
     });
 
     return { month, transactions };
   });
 
-  async function getUnidentifiedCategoryId() {
-  const cat = await prisma.category.findFirst({
-    where: { name: "No identificado", isActive: true },
-    select: { id: true },
-  });
-  if (!cat) throw new Error('Missing seed category: "No identificado"');
-  return cat.id;
-}
+  // GET /months/:monthId/unidentified
+  app.get<{ Params: { monthId: string } }>(
+    "/months/:monthId/unidentified",
+    async (req, reply) => {
+      const { monthId } = req.params;
 
-// GET /months/:monthId/unidentified
-app.get<{ Params: { monthId: string } }>(
-  "/months/:monthId/unidentified",
-  async (req, reply) => {
-    const { monthId } = req.params;
+      const month = await prisma.month.findUnique({ where: { id: monthId } });
+      if (!month) return reply.status(404).send({ error: "month not found" });
 
-    const month = await prisma.month.findUnique({ where: { id: monthId } });
-    if (!month) return reply.status(404).send({ error: "month not found" });
+      const unidentifiedCategoryId = await getUnidentifiedCategoryId();
 
-    const unidentifiedCategoryId = await getUnidentifiedCategoryId();
+      const transactions = await prisma.transaction.findMany({
+        where: { monthId, categoryId: unidentifiedCategoryId },
+        include: { category: { include: { group: true } }, paymentMethod: true },
+        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+      });
 
-    const transactions = await prisma.transaction.findMany({
-      where: { monthId, categoryId: unidentifiedCategoryId },
-      include: { category: { include: { group: true } } },
-      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-    });
-
-    return { month, transactions };
-  }
-);
+      return { month, transactions };
+    }
+  );
 
 // PATCH /transactions/:id
 app.patch<{ Params: { id: string }; Body: UpdateTransactionBody }>(
@@ -164,17 +163,30 @@ app.patch<{ Params: { id: string }; Body: UpdateTransactionBody }>(
       }
     }
 
+    if (body.paymentMethodId !== undefined) {
+      if (typeof body.paymentMethodId !== "string" || !body.paymentMethodId.trim()) {
+        return reply.status(400).send({ error: "paymentMethodId must be a non-empty string" });
+      }
+      const pm = await prisma.paymentMethod.findUnique({
+        where: { id: body.paymentMethodId },
+        select: { id: true, isActive: true },
+      });
+      if (!pm) return reply.status(404).send({ error: "payment method not found" });
+      if (!pm.isActive) return reply.status(400).send({ error: "payment method is not active" });
+    }
+
     const updated = await prisma.transaction.update({
       where: { id },
       data: {
         categoryId: body.categoryId,
+        paymentMethodId: body.paymentMethodId,
         isReconciled: typeof body.isReconciled === "boolean" ? body.isReconciled : undefined,
         note: body.note === undefined ? undefined : body.note?.trim() ?? null,
         description:
           body.description === undefined ? undefined : body.description.trim(),
         date: body.date === undefined ? undefined : new Date(body.date),
       },
-      include: { category: { include: { group: true } } },
+      include: { category: { include: { group: true } }, paymentMethod: true },
     });
 
     return updated;

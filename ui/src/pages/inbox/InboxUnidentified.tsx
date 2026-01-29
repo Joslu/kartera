@@ -19,9 +19,10 @@ import {
   getUnidentified,
   patchTransaction,
   getMonths,
+  getPaymentMethods,
 } from "../../api/endpoints";
 
-import type { Category, Transaction } from "../../api/types";
+import type { Category, PaymentMethod, Transaction } from "../../api/types";
 import { getStoredMonthId, setStoredMonthId } from "../../utils/month";
  
 
@@ -37,6 +38,7 @@ export default function InboxUnidentified() {
 
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [rows, setRows] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<UISummary | null>(null);
 
@@ -110,10 +112,11 @@ export default function InboxUnidentified() {
   useEffect(() => {
     (async () => {
       try {
-        const ms = await getMonths();
+        const [ms, pms] = await Promise.all([getMonths(), getPaymentMethods()]);
         // ordena: más reciente primero
         ms.sort((a, b) => b.year - a.year || b.month - a.month);
         setMonths(ms);
+        setPaymentMethods(pms);
 
         // si tu DEFAULT_MONTH_ID no está en la lista, usa el primero
         if (ms.length > 0 && !ms.some((m) => m.id === monthId)) {
@@ -181,6 +184,7 @@ export default function InboxUnidentified() {
     date: string;
     amount: number;
     source: string;
+    paymentMethodId: string;
   }) {
     await createIncome(payload);
 
@@ -196,7 +200,7 @@ export default function InboxUnidentified() {
     date: string;
     amount: number;
     description: string;
-    paymentMethod: string;
+    paymentMethodId: string;
     categoryId?: string;
   }) {
     await createTransaction(payload);
@@ -463,7 +467,7 @@ export default function InboxUnidentified() {
                                 {money(t.amount)}
                               </td>
                               <td className="py-3 pr-3 whitespace-nowrap text-zinc-700">
-                                {t.paymentMethod}
+                                {t.paymentMethod?.name ?? "—"}
                               </td>
                               <td className="py-2">
                                 <Select
@@ -516,6 +520,7 @@ export default function InboxUnidentified() {
         <CreateIncomeModal
           open={incomeOpen}
           monthId={monthId}
+          paymentMethods={paymentMethods}
           onClose={() => setIncomeOpen(false)}
           onCreate={handleCreateIncome}
         />
@@ -524,6 +529,7 @@ export default function InboxUnidentified() {
           open={expenseOpen}
           monthId={monthId}
           categories={groupedCategories} // el Record<string, Category[]> que ya usas para optgroup
+          paymentMethods={paymentMethods}
           onClose={() => setExpenseOpen(false)}
           onCreate={handleCreateExpense}
         />

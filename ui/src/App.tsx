@@ -5,6 +5,7 @@ import MonthBudgets from "./pages/budgets/MonthBudgets";
 import Settings from "./pages/settings/Settings";
 import MonthSummary from "./pages/summary/MonthSummary";
 import AboutPage from "./pages/about/AboutPage";
+import CreditCards from "./pages/cards/CreditCards";
 
 export default function App() {
   const tabClass = ({ isActive }: { isActive: boolean }) =>
@@ -29,6 +30,9 @@ export default function App() {
             <NavLink className={tabClass} to="/transactions">
               Transacciones
             </NavLink>
+            <NavLink className={tabClass} to="/cards">
+              Tarjetas
+            </NavLink>
             <NavLink className={tabClass} to="/settings">
               Settings
             </NavLink>
@@ -45,6 +49,7 @@ export default function App() {
         <Route path="/inbox" element={<InboxUnidentified />} />
         <Route path="/summary" element={<MonthSummary />} />
         <Route path="/transactions" element={<MonthTransactions />} />
+        <Route path="/cards" element={<CreditCards />} />
         <Route path="/budgets" element={<MonthBudgets />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/about" element={<AboutPage />} />

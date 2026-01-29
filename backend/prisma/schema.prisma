@@ -13,11 +13,10 @@ enum CategoryKind {
   TRACKING
 }
 
-enum PaymentMethod {
-  CREDIT_BANAMEX
-  CREDIT_NUBANK
-  DEBIT_BBVA
+enum PaymentMethodType {
   CASH
+  DEBIT
+  CREDIT
 }
 
 model Month {
@@ -53,6 +52,7 @@ model Category {
   group        CategoryGroup      @relation(fields: [groupId], references: [id], onDelete: Restrict)
   assignments  BudgetAssignment[]
   transactions Transaction[]
+  creditCards  CreditCard[]
 
   @@unique([groupId, name])
   @@index([groupId])
@@ -66,11 +66,14 @@ model Income {
   amount  Decimal  @db.Decimal(12, 2)
   source  String?
   note    String?
+  paymentMethodId String?
 
   month Month @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
 
   @@index([monthId])
   @@index([date])
+  @@index([paymentMethodId])
 }
 
 model BudgetAssignment {
@@ -92,7 +95,7 @@ model Transaction {
   date          DateTime      @db.Date
   amount        Decimal       @db.Decimal(12, 2)
   categoryId    String
-  paymentMethod PaymentMethod
+  paymentMethodId String
   description   String
   note          String?
   isReconciled  Boolean       @default(false)
@@ -100,11 +103,38 @@ model Transaction {
 
   month    Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
 
   @@index([monthId])
   @@index([categoryId])
   @@index([date])
-  @@index([paymentMethod])
+  @@index([paymentMethodId])
   @@index([createdAt])
 }
 
+model PaymentMethod {
+  id        String            @id @default(uuid())
+  name      String            @unique
+  type      PaymentMethodType
+  isActive  Boolean           @default(true)
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+
+  transactions Transaction[]
+  incomes     Income[]
+  creditCard   CreditCard?
+}
+
+model CreditCard {
+  id                 String   @id @default(uuid())
+  paymentMethodId    String   @unique
+  cutoffDay          Int
+  dueDay             Int?
+  paymentCategoryId  String?
+  createdAt          DateTime @default(now())
+
+  paymentMethod  PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Cascade)
+  paymentCategory Category?    @relation(fields: [paymentCategoryId], references: [id], onDelete: SetNull)
+
+  @@index([paymentCategoryId])
+}

@@ -11,8 +11,22 @@ import {
   deleteCategory,
   createCategoryGroup,
   deleteCategoryGroup,
+  getPaymentMethods,
+  createPaymentMethod,
+  patchPaymentMethod,
+  deletePaymentMethod,
+  getCreditCards,
+  createCreditCard,
+  patchCreditCard,
+  deleteCreditCard,
 } from "../../api/endpoints";
-import type { Category, CategoryGroup } from "../../api/types";
+import type {
+  Category,
+  CategoryGroup,
+  CreditCard,
+  PaymentMethod,
+  PaymentMethodType,
+} from "../../api/types";
 import { formatMonthName } from "../../utils/format";
 
 type FormState = {
@@ -24,6 +38,8 @@ type FormState = {
 export default function Settings() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [groups, setGroups] = useState<CategoryGroup[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
   const [months, setMonths] = useState<
     Array<{ id: string; year: number; month: number; createdAt: string }>
   >([]);
@@ -44,6 +60,32 @@ export default function Settings() {
   const [groupForm, setGroupForm] = useState<{ name: string }>({
     name: "",
   });
+  const [pmForm, setPmForm] = useState<{
+    name: string;
+    type: PaymentMethodType;
+    sortOrder: string;
+  }>({
+    name: "",
+    type: "CASH",
+    sortOrder: "0",
+  });
+  const [pmSaving, setPmSaving] = useState(false);
+  const [cardForm, setCardForm] = useState<{
+    paymentMethodId: string;
+    cutoffDay: string;
+    dueDay: string;
+    paymentCategoryId: string;
+  }>({
+    paymentMethodId: "",
+    cutoffDay: "20",
+    dueDay: "",
+    paymentCategoryId: "",
+  });
+  const [cardSaving, setCardSaving] = useState(false);
+  const [cardDrafts, setCardDrafts] = useState<
+    Record<string, { cutoffDay: string; dueDay: string; paymentCategoryId: string }>
+  >({});
+  const [cardSavingId, setCardSavingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{
     type: "success" | "error";
     message: string;
@@ -62,20 +104,39 @@ export default function Settings() {
     return map;
   }, [categories]);
 
+  const trackingCategories = useMemo(() => {
+    return categories
+      .filter((c) => c.kind === "TRACKING")
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const [cats, gs] = await Promise.all([
+        const [cats, gs, pms, cards, ms] = await Promise.all([
           getCategories(),
           getCategoryGroups(),
+          getPaymentMethods(),
+          getCreditCards(),
+          getMonths(),
         ]);
         setCategories(cats);
         setGroups(gs);
-        const ms = await getMonths();
+        setPaymentMethods(pms);
+        setCreditCards(cards);
         setMonths(ms);
         if (gs.length > 0 && !form.groupId) {
           setForm((current) => ({ ...current, groupId: gs[0].id }));
+        }
+        if (pms.length > 0 && !cardForm.paymentMethodId) {
+          const used = new Set(cards.map((c) => c.paymentMethodId));
+          const firstCredit = pms.find(
+            (p) => p.type === "CREDIT" && !used.has(p.id),
+          );
+          if (firstCredit) {
+            setCardForm((current) => ({ ...current, paymentMethodId: firstCredit.id }));
+          }
         }
       } catch (e: any) {
         setToast({
@@ -225,6 +286,162 @@ export default function Settings() {
       setToast({
         type: "error",
         message: e?.message ?? "No se pudo eliminar el mes",
+      });
+    }
+  }
+
+  async function refreshPaymentMethods() {
+    const pms = await getPaymentMethods();
+    setPaymentMethods(pms);
+  }
+
+  async function refreshCreditCards() {
+    const cards = await getCreditCards();
+    setCreditCards(cards);
+  }
+
+  async function handleCreatePaymentMethod() {
+    if (!pmForm.name.trim()) {
+      setToast({ type: "error", message: "Nombre requerido" });
+      return;
+    }
+    const sortOrder = Number(pmForm.sortOrder);
+    setPmSaving(true);
+    try {
+      await createPaymentMethod({
+        name: pmForm.name.trim(),
+        type: pmForm.type,
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+      });
+      await refreshPaymentMethods();
+      setPmForm({ name: "", type: pmForm.type, sortOrder: "0" });
+      setToast({ type: "success", message: "Metodo de pago creado" });
+    } catch (e: any) {
+      setToast({
+        type: "error",
+        message: e?.message ?? "No se pudo crear metodo de pago",
+      });
+    } finally {
+      setPmSaving(false);
+    }
+  }
+
+  async function handleTogglePaymentMethod(pm: PaymentMethod) {
+    try {
+      await patchPaymentMethod(pm.id, { isActive: !pm.isActive });
+      await refreshPaymentMethods();
+    } catch (e: any) {
+      setToast({
+        type: "error",
+        message: e?.message ?? "No se pudo actualizar metodo",
+      });
+    }
+  }
+
+  async function handleDeletePaymentMethod(pm: PaymentMethod) {
+    if (!confirm(`¿Eliminar el metodo "${pm.name}"?`)) return;
+    try {
+      await deletePaymentMethod(pm.id);
+      await refreshPaymentMethods();
+      setToast({ type: "success", message: "Metodo eliminado" });
+    } catch (e: any) {
+      setToast({
+        type: "error",
+        message: e?.message ?? "No se pudo eliminar metodo",
+      });
+    }
+  }
+
+  async function handleCreateCreditCard() {
+    const cutoffDay = Number(cardForm.cutoffDay);
+    const dueDay = cardForm.dueDay ? Number(cardForm.dueDay) : null;
+    if (!cardForm.paymentMethodId) {
+      setToast({ type: "error", message: "Selecciona un metodo de credito" });
+      return;
+    }
+    if (!Number.isInteger(cutoffDay) || cutoffDay < 1 || cutoffDay > 31) {
+      setToast({ type: "error", message: "Corte invalido (1-31)" });
+      return;
+    }
+    if (dueDay !== null && (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31)) {
+      setToast({ type: "error", message: "Dias despues invalidos (1-31)" });
+      return;
+    }
+    setCardSaving(true);
+    try {
+      await createCreditCard({
+        paymentMethodId: cardForm.paymentMethodId,
+        cutoffDay,
+        dueDay,
+        paymentCategoryId: cardForm.paymentCategoryId || null,
+      });
+      await refreshCreditCards();
+      setCardForm((current) => ({ ...current, cutoffDay: "20", dueDay: "", paymentCategoryId: "" }));
+      setToast({ type: "success", message: "Tarjeta creada" });
+    } catch (e: any) {
+      setToast({
+        type: "error",
+        message: e?.message ?? "No se pudo crear tarjeta",
+      });
+    } finally {
+      setCardSaving(false);
+    }
+  }
+
+  function updateCardDraft(card: CreditCard, patch: { cutoffDay?: string; dueDay?: string; paymentCategoryId?: string }) {
+    setCardDrafts((current) => ({
+      ...current,
+      [card.id]: {
+        cutoffDay: patch.cutoffDay ?? current[card.id]?.cutoffDay ?? String(card.cutoffDay),
+        dueDay: patch.dueDay ?? current[card.id]?.dueDay ?? String(card.dueDay ?? ""),
+        paymentCategoryId:
+          patch.paymentCategoryId ?? current[card.id]?.paymentCategoryId ?? String(card.paymentCategoryId ?? ""),
+      },
+    }));
+  }
+
+  async function handleSaveCreditCard(card: CreditCard) {
+    const draft = cardDrafts[card.id];
+    if (!draft) return;
+    const cutoffDay = Number(draft.cutoffDay);
+    const dueDay = draft.dueDay ? Number(draft.dueDay) : null;
+    if (!Number.isInteger(cutoffDay) || cutoffDay < 1 || cutoffDay > 31) {
+      setToast({ type: "error", message: "Corte invalido (1-31)" });
+      return;
+    }
+    if (dueDay !== null && (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31)) {
+      setToast({ type: "error", message: "Dias despues invalidos (1-31)" });
+      return;
+    }
+    setCardSavingId(card.id);
+    try {
+      await patchCreditCard(card.id, {
+        cutoffDay,
+        dueDay,
+        paymentCategoryId: draft.paymentCategoryId || null,
+      });
+      await refreshCreditCards();
+      setToast({ type: "success", message: "Tarjeta actualizada" });
+    } catch (e: any) {
+      setToast({
+        type: "error",
+        message: e?.message ?? "No se pudo actualizar tarjeta",
+      });
+    } finally {
+      setCardSavingId(null);
+    }
+  }
+
+  async function handleDeleteCreditCard(card: CreditCard) {
+    if (!confirm(`¿Eliminar la tarjeta "${card.paymentMethod?.name ?? "Tarjeta"}"?`)) return;
+    try {
+      await deleteCreditCard(card.id);
+      await refreshCreditCards();
+      setToast({ type: "success", message: "Tarjeta eliminada" });
+    } catch (e: any) {
+      setToast({
+        type: "error",
+        message: e?.message ?? "No se pudo eliminar tarjeta",
       });
     }
   }
@@ -487,6 +704,329 @@ export default function Settings() {
                       </button>
                     </div>
                   </div>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_2fr]">
+          <Card>
+            <CardHeader>
+              <div className="text-sm font-medium text-zinc-900">
+                Nuevo metodo de pago
+              </div>
+              <div className="text-xs text-zinc-600">POST /payment-methods</div>
+            </CardHeader>
+            <CardBody>
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-600">
+                    Nombre
+                  </label>
+                  <input
+                    className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                    value={pmForm.name}
+                    onChange={(e) =>
+                      setPmForm((current) => ({ ...current, name: e.target.value }))
+                    }
+                    placeholder="Ej. Debito BBVA"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-600">
+                    Tipo
+                  </label>
+                  <select
+                    className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                    value={pmForm.type}
+                    onChange={(e) =>
+                      setPmForm((current) => ({
+                        ...current,
+                        type: e.target.value as PaymentMethodType,
+                      }))
+                    }
+                  >
+                    <option value="CASH">CASH</option>
+                    <option value="DEBIT">DEBIT</option>
+                    <option value="CREDIT">CREDIT</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-600">
+                    Orden
+                  </label>
+                  <input
+                    className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                    inputMode="numeric"
+                    value={pmForm.sortOrder}
+                    onChange={(e) =>
+                      setPmForm((current) => ({ ...current, sortOrder: e.target.value }))
+                    }
+                  />
+                </div>
+                <button
+                  className="h-9 w-full rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                  onClick={handleCreatePaymentMethod}
+                  disabled={pmSaving}
+                >
+                  {pmSaving ? "Guardando…" : "Crear metodo"}
+                </button>
+              </div>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-zinc-900">
+                    Metodos de pago
+                  </div>
+                  <div className="text-xs text-zinc-600">
+                    {paymentMethods.length} metodos
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardBody>
+              {paymentMethods.length === 0 ? (
+                <div className="text-sm text-zinc-600">No hay metodos.</div>
+              ) : (
+                <div className="space-y-2">
+                  {paymentMethods.map((pm) => (
+                    <div
+                      key={pm.id}
+                      className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    >
+                      <div>
+                        <div className="text-zinc-900">{pm.name}</div>
+                        <div className="text-xs text-zinc-500">
+                          {pm.type} · {pm.isActive ? "Activo" : "Inactivo"}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-700 hover:bg-zinc-50"
+                          onClick={() => handleTogglePaymentMethod(pm)}
+                        >
+                          {pm.isActive ? "Desactivar" : "Activar"}
+                        </button>
+                        <button
+                          className="h-8 rounded-md border border-rose-200 bg-rose-50 px-2 text-xs text-rose-700 hover:bg-rose-100"
+                          onClick={() => handleDeletePaymentMethod(pm)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_2fr]">
+          <Card>
+            <CardHeader>
+              <div className="text-sm font-medium text-zinc-900">
+                Nueva tarjeta de credito
+              </div>
+              <div className="text-xs text-zinc-600">POST /credit-cards</div>
+            </CardHeader>
+            <CardBody>
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-600">
+                    Metodo de pago (CREDIT)
+                  </label>
+                  <select
+                    className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                    value={cardForm.paymentMethodId}
+                    onChange={(e) =>
+                      setCardForm((current) => ({
+                        ...current,
+                        paymentMethodId: e.target.value,
+                      }))
+                    }
+                  >
+                    {(() => {
+                      const used = new Set(creditCards.map((c) => c.paymentMethodId));
+                      const options = paymentMethods.filter(
+                        (pm) => pm.type === "CREDIT" && !used.has(pm.id),
+                      );
+                      if (options.length === 0) {
+                        return <option value="">Sin metodos disponibles</option>;
+                      }
+                      return options.map((pm) => (
+                        <option key={pm.id} value={pm.id}>
+                          {pm.name}
+                        </option>
+                      ));
+                    })()}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-600">
+                    Dia de corte
+                  </label>
+                  <input
+                    className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                    inputMode="numeric"
+                    value={cardForm.cutoffDay}
+                    onChange={(e) =>
+                      setCardForm((current) => ({ ...current, cutoffDay: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-600">
+                    Dias despues del corte (opcional)
+                  </label>
+                  <input
+                    className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                    inputMode="numeric"
+                    value={cardForm.dueDay}
+                    onChange={(e) =>
+                      setCardForm((current) => ({ ...current, dueDay: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-600">
+                    Categoria de pago (TRACKING)
+                  </label>
+                  <select
+                    className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                    value={cardForm.paymentCategoryId}
+                    onChange={(e) =>
+                      setCardForm((current) => ({
+                        ...current,
+                        paymentCategoryId: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Sin categoria</option>
+                    {trackingCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  className="h-9 w-full rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                  onClick={handleCreateCreditCard}
+                  disabled={cardSaving}
+                >
+                  {cardSaving ? "Guardando…" : "Crear tarjeta"}
+                </button>
+              </div>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-zinc-900">
+                    Tarjetas de credito
+                  </div>
+                  <div className="text-xs text-zinc-600">
+                    {creditCards.length} tarjetas
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardBody>
+              {creditCards.length === 0 ? (
+                <div className="text-sm text-zinc-600">No hay tarjetas.</div>
+              ) : (
+                <div className="space-y-3">
+                  {creditCards.map((card) => {
+                    const draft = cardDrafts[card.id];
+                    const cutoffDay = draft?.cutoffDay ?? String(card.cutoffDay);
+                    const dueDay = draft?.dueDay ?? String(card.dueDay ?? "");
+                    const paymentCategoryId =
+                      draft?.paymentCategoryId ?? String(card.paymentCategoryId ?? "");
+                    return (
+                      <div
+                        key={card.id}
+                        className="rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-zinc-900">
+                            {card.paymentMethod?.name ?? "Tarjeta"}
+                          </div>
+                          <button
+                            className="h-8 rounded-md border border-rose-200 bg-rose-50 px-2 text-xs text-rose-700 hover:bg-rose-100"
+                            onClick={() => handleDeleteCreditCard(card)}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          <div>
+                            <label className="mb-1 block text-xs text-zinc-600">
+                              Corte
+                            </label>
+                            <input
+                              className="h-8 w-full rounded-md border border-zinc-200 bg-white px-2 text-xs outline-none focus:ring-2 focus:ring-zinc-200"
+                              inputMode="numeric"
+                              value={cutoffDay}
+                              onChange={(e) =>
+                                updateCardDraft(card, { cutoffDay: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs text-zinc-600">
+                              Dias despues
+                            </label>
+                            <input
+                              className="h-8 w-full rounded-md border border-zinc-200 bg-white px-2 text-xs outline-none focus:ring-2 focus:ring-zinc-200"
+                              inputMode="numeric"
+                              value={dueDay}
+                              onChange={(e) =>
+                                updateCardDraft(card, { dueDay: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs text-zinc-600">
+                              Categoria pago
+                            </label>
+                            <select
+                              className="h-8 w-full rounded-md border border-zinc-200 bg-white px-2 text-xs outline-none focus:ring-2 focus:ring-zinc-200"
+                              value={paymentCategoryId}
+                              onChange={(e) =>
+                                updateCardDraft(card, {
+                                  paymentCategoryId: e.target.value,
+                                })
+                              }
+                            >
+                              <option value="">Sin categoria</option>
+                              {trackingCategories.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            className="h-8 rounded-md bg-zinc-900 px-3 text-xs text-white hover:bg-zinc-800 disabled:opacity-60"
+                            onClick={() => handleSaveCreditCard(card)}
+                            disabled={cardSavingId === card.id}
+                          >
+                            {cardSavingId === card.id ? "Guardando…" : "Guardar"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardBody>

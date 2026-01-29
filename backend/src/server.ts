@@ -5,6 +5,7 @@ import { incomesRoutes } from "./routes/incomes";
 import { assignmentsRoutes } from "./routes/assignments";
 import { transactionsRoutes } from "./routes/transactions";
 import { summaryRoutes } from "./routes/summary";
+import { paymentMethodsRoutes } from "./routes/paymentMethods";
 import cors from "@fastify/cors";
 
 async function main() {
@@ -23,6 +24,7 @@ await app.register(cors, {
   await app.register(assignmentsRoutes);
   await app.register(transactionsRoutes);
   await app.register(summaryRoutes);
+  await app.register(paymentMethodsRoutes);
 
   const port = Number(process.env.PORT ?? 3000);
   const host = process.env.HOST ?? "0.0.0.0";

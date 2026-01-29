@@ -1,4 +1,4 @@
-import { PrismaClient, CategoryKind } from "@prisma/client";
+import { PrismaClient, CategoryKind, PaymentMethodType } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -68,7 +68,7 @@ async function main() {
     // Movimientos (TRACKING)
     { groupName: "Movimientos", name: "No identificado", kind: "EXPENSE", sortOrder: 0 },
     { groupName: "Movimientos", name: "Pago TDC Banamex", kind: "TRACKING", sortOrder: 10 },
-    { groupName: "Movimientos", name: "Pago TDC Nubank", kind: "TRACKING", sortOrder: 20 },
+    { groupName: "Movimientos", name: "Pago TDC NU", kind: "TRACKING", sortOrder: 20 },
     { groupName: "Movimientos", name: "Retiro efectivo (Débito BBVA)", kind: "TRACKING", sortOrder: 30 },
     { groupName: "Movimientos", name: "Transferencias", kind: "TRACKING", sortOrder: 40 },
   ];
@@ -94,7 +94,85 @@ async function main() {
     });
   }
 
-  console.log("✅ Seed completado: CategoryGroups y Categories iniciales.");
+  // 3) Payment Methods (iniciales)
+  const paymentMethods: Array<{
+    name: string;
+    type: PaymentMethodType;
+    sortOrder: number;
+  }> = [
+    { name: "Efectivo", type: PaymentMethodType.CASH, sortOrder: 10 },
+    { name: "Debito BBVA", type: PaymentMethodType.DEBIT, sortOrder: 20 },
+    { name: "Debito Banamex", type: PaymentMethodType.DEBIT, sortOrder: 30 },
+    { name: "TDC Banamex", type: PaymentMethodType.CREDIT, sortOrder: 40 },
+    { name: "TDC NU", type: PaymentMethodType.CREDIT, sortOrder: 50 },
+  ];
+
+  const paymentMethodMap = new Map<string, string>();
+  for (const pm of paymentMethods) {
+    const saved = await prisma.paymentMethod.upsert({
+      where: { name: pm.name },
+      update: {
+        type: pm.type,
+        sortOrder: pm.sortOrder,
+        isActive: true,
+      },
+      create: {
+        name: pm.name,
+        type: pm.type,
+        sortOrder: pm.sortOrder,
+        isActive: true,
+      },
+    });
+    paymentMethodMap.set(pm.name, saved.id);
+  }
+
+  // 4) Credit Cards (defaults)
+  const banamexPaymentCategory = await prisma.category.findFirst({
+    where: { name: "Pago TDC Banamex" },
+    select: { id: true },
+  });
+  const nuPaymentCategory = await prisma.category.findFirst({
+    where: { name: "Pago TDC NU" },
+    select: { id: true },
+  });
+
+  const banamexPmId = paymentMethodMap.get("TDC Banamex");
+  if (banamexPmId) {
+    await prisma.creditCard.upsert({
+      where: { paymentMethodId: banamexPmId },
+      update: {
+        cutoffDay: 20,
+        dueDay: 9,
+        paymentCategoryId: banamexPaymentCategory?.id ?? null,
+      },
+      create: {
+        paymentMethodId: banamexPmId,
+        cutoffDay: 20,
+        dueDay: 9,
+        paymentCategoryId: banamexPaymentCategory?.id ?? null,
+      },
+    });
+  }
+
+  const nuPmId = paymentMethodMap.get("TDC NU");
+  if (nuPmId) {
+    await prisma.creditCard.upsert({
+      where: { paymentMethodId: nuPmId },
+      update: {
+        cutoffDay: 26,
+        dueDay: 3,
+        paymentCategoryId: nuPaymentCategory?.id ?? null,
+      },
+      create: {
+        paymentMethodId: nuPmId,
+        cutoffDay: 26,
+        dueDay: 3,
+        paymentCategoryId: nuPaymentCategory?.id ?? null,
+      },
+    });
+  }
+
+  console.log("✅ Seed completado: CategoryGroups, Categories, PaymentMethods y CreditCards.");
 }
 
 main()
