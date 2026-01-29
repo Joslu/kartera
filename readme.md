@@ -101,6 +101,31 @@ postgresql://budget:budget@localhost:5432/budget
 
 ---
 
+## ▶️ Quick Start
+
+```bash
+# 1) Infraestructura
+cd infra
+docker compose up -d
+
+# 2) Backend
+cd ../backend
+npm install
+npx prisma migrate deploy
+npx prisma generate
+npx prisma db seed
+npm run dev
+
+# 3) UI
+cd ../ui
+npm install
+npm run dev
+```
+
+UI por defecto en `http://localhost:5173`
+
+---
+
 ## ▶️ Cómo correr el proyecto
 
 ### 1) Infraestructura
@@ -119,6 +144,7 @@ npm run dev
 ### 3) Migraciones + seed
 ```bash
 npx prisma migrate deploy
+npx prisma generate
 npx prisma db seed
 ```
 
@@ -241,6 +267,8 @@ Ver `future.md` para más detalle.
 
 - Multiusuario (sesiones, auth, multi-tenant)
 - Métodos de pago dinámicos (tabla en DB)
+- Tarjetas de crédito con ciclos y deuda
+- Saldos por cuenta (cash/debito)
 - Presupuestos por grupo y metas
 - Reportes (tendencias, comparativas)
 - Importación de CSV/OFX
