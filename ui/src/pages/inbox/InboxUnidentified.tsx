@@ -6,7 +6,8 @@ import { money, formatDate } from "../../utils/format";
 import { mapSummaryToUI, type UISummary } from "../inbox/summary";
 
 import { CreateIncomeModal } from "./CreateIncomeModal";
-import { createIncome } from "../../api/endpoints";
+import { CreateTransferModal } from "./CreateTransferModal";
+import { createIncome, createTransfer } from "../../api/endpoints";
 
 import { MonthSelect } from "./MonthSelect";
 import { CreateExpenseModal } from "./CreateExpenseModal";
@@ -16,8 +17,10 @@ import { groupCategories } from "./categoryGroup";
 import {
   getCategories,
   getMonthSummary,
+  getMonthSpendByCard,
   getUnidentified,
   patchTransaction,
+  deleteTransaction,
   getMonths,
   getPaymentMethods,
 } from "../../api/endpoints";
@@ -35,12 +38,22 @@ export default function InboxUnidentified() {
 
   const [incomeOpen, setIncomeOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [rows, setRows] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<UISummary | null>(null);
+  const [cardSpend, setCardSpend] = useState<{
+    totalSpent: number;
+    items: Array<{
+      paymentMethodId: string;
+      paymentMethodName: string;
+      spent: number;
+      pct: number;
+    }>;
+  } | null>(null);
 
   const [savingId, setSavingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{
@@ -85,20 +98,40 @@ export default function InboxUnidentified() {
       pctCategorizedLabel: Math.round(pctCategorized * 100),
     };
   }, [summary]);
+
+  const spendControl = useMemo(() => {
+    if (!summary) return null;
+    const expenses = Number(summary.expenses ?? 0);
+    const income = Number(summary.income ?? 0);
+    const net = Number(summary.net ?? 0);
+    const base = income > 0 ? income : Math.max(expenses, 1);
+    const savingAbs = Math.abs(net);
+    const savingPct = Math.min(100, (savingAbs / base) * 100);
+    return {
+      spentPct: Math.min(100, (expenses / base) * 100),
+      remainingPct: Math.max(0, 100 - Math.min(100, (expenses / base) * 100)),
+      savingPct,
+      savingNegative: net < 0,
+      spentLabel: Math.round(Math.min(100, (expenses / base) * 100)),
+      savingLabel: Math.round(savingPct),
+    };
+  }, [summary]);
  
 
   async function load() {
     setLoading(true);
     try {
-      const [cats, txs, s] = await Promise.all([
+      const [cats, txs, s, spendByCard] = await Promise.all([
         getCategories(),
         getUnidentified(monthId),
         getMonthSummary(monthId),
+        getMonthSpendByCard(monthId),
       ]);
 
       setCategories(cats);
       setRows(txs);
       setSummary(mapSummaryToUI(s));
+      setCardSpend(spendByCard);
     } catch (e: any) {
       setToast({
         type: "error",
@@ -162,8 +195,12 @@ export default function InboxUnidentified() {
 
       // refrescamos summary (opcional, pero útil)
       try {
-        const s = await getMonthSummary(monthId);
+        const [s, spendByCard] = await Promise.all([
+          getMonthSummary(monthId),
+          getMonthSpendByCard(monthId),
+        ]);
         setSummary(mapSummaryToUI(s));
+        setCardSpend(spendByCard);
       } catch {
         // si falla, no rompemos el flujo
       }
@@ -173,6 +210,30 @@ export default function InboxUnidentified() {
       setToast({
         type: "error",
         message: e?.message ?? "No se pudo actualizar",
+      });
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function handleDelete(tx: Transaction) {
+    if (!confirm("¿Eliminar este movimiento?")) return;
+    setSavingId(tx.id);
+    try {
+      await deleteTransaction(tx.id);
+      setToast({ type: "success", message: "Movimiento eliminado" });
+      const [s, txs, spendByCard] = await Promise.all([
+        getMonthSummary(monthId),
+        getUnidentified(monthId),
+        getMonthSpendByCard(monthId),
+      ]);
+      setSummary(mapSummaryToUI(s));
+      setRows(txs);
+      setCardSpend(spendByCard);
+    } catch (e: any) {
+      setToast({
+        type: "error",
+        message: e?.message ?? "No se pudo eliminar",
       });
     } finally {
       setSavingId(null);
@@ -191,8 +252,36 @@ export default function InboxUnidentified() {
     setToast({ type: "success", message: "Ingreso agregado" });
 
     // refresca summary para reflejar ingresos
-    const s = await getMonthSummary(monthId);
+    const [s, spendByCard] = await Promise.all([
+      getMonthSummary(monthId),
+      getMonthSpendByCard(monthId),
+    ]);
     setSummary(mapSummaryToUI(s));
+    setCardSpend(spendByCard);
+  }
+
+  async function handleCreateTransfer(payload: {
+    monthId: string;
+    date: string;
+    amount: number;
+    fromPaymentMethodId: string;
+    toPaymentMethodId: string;
+    description?: string;
+    note?: string;
+  }) {
+    await createTransfer(payload);
+
+    setToast({ type: "success", message: "Transferencia creada" });
+
+    const [s, txs, spendByCard] = await Promise.all([
+      getMonthSummary(monthId),
+      getUnidentified(monthId),
+      getMonthSpendByCard(monthId),
+    ]);
+
+    setSummary(mapSummaryToUI(s));
+    setRows(txs);
+    setCardSpend(spendByCard);
   }
 
   async function handleCreateExpense(payload: {
@@ -208,13 +297,15 @@ export default function InboxUnidentified() {
     setToast({ type: "success", message: "Gasto agregado" });
 
     // Refresca summary + inbox para reflejar el cambio
-    const [s, txs] = await Promise.all([
+    const [s, txs, spendByCard] = await Promise.all([
       getMonthSummary(monthId),
       getUnidentified(monthId),
+      getMonthSpendByCard(monthId),
     ]);
 
     setSummary(mapSummaryToUI(s));
     setRows(txs);
+    setCardSpend(spendByCard);
   }
 
   return (
@@ -276,6 +367,30 @@ export default function InboxUnidentified() {
                 </button>
                 <button
                   className="flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-50"
+                  onClick={() => setTransferOpen(true)}
+                  disabled={!monthId}
+                  aria-label="Nueva transferencia"
+                  title="Nueva transferencia"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M16 3h5v5" />
+                    <path d="M21 3l-7 7" />
+                    <path d="M8 21H3v-5" />
+                    <path d="M3 21l7-7" />
+                  </svg>
+                  Transfer
+                </button>
+                <button
+                  className="flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-50"
                   onClick={() => setExpenseOpen(true)}
                   disabled={!monthId}
                   aria-label="Nuevo gasto"
@@ -305,103 +420,124 @@ export default function InboxUnidentified() {
         <div className="h-4" />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <div className="text-sm font-medium text-zinc-900">
-                {summary
-                  ? `RESUMEN · ${summary.monthLabel.toUpperCase()}`
-                  : "Resumen"}
-              </div>
-              <div className="text-xs text-zinc-600">
-                /months/:monthId/summary
-              </div>
-            </CardHeader>
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="text-sm font-medium text-zinc-900">
+                  {summary
+                    ? `RESUMEN · ${summary.monthLabel.toUpperCase()}`
+                    : "Resumen"}
+                </div>
+                <div className="text-xs text-zinc-600">
+                  /months/:monthId/summary
+                </div>
+              </CardHeader>
 
-            <CardBody>
-              {summary ? (
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-600">Ingresos</span>
-                    <span className="font-medium">{money(summary.income)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-600">Gastos</span>
-                    <span className="font-medium">
-                      {money(summary.expenses)}
-                    </span>
-                  </div>
+              <CardBody>
+                {summary ? (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-zinc-600">Ingresos</span>
+                      <span className="font-medium">{money(summary.income)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-600">Gastos</span>
+                      <span className="font-medium">
+                        {money(summary.expenses)}
+                      </span>
+                    </div>
                   <div className="flex justify-between">
                     <span className="text-zinc-600">Net</span>
                     <span className="font-semibold">{money(summary.net)}</span>
                   </div>
-                  <div className="pt-2 border-t border-zinc-100 flex justify-between">
-                    <span className="text-zinc-600">
-                      No identificado (gastado)
-                    </span>
-                    <span className="font-semibold">
-                      {money(summary.unidentifiedSpent)}
-                    </span>
-                  </div>
-                  <div className="pt-3">
-                    {donut ? (
-                      <div className="flex items-center gap-3">
-                        <div className="relative h-16 w-16">
-                          <svg
-                            className="h-16 w-16 -rotate-90"
-                            viewBox="0 0 80 80"
-                          >
-                            <circle
-                              cx="40"
-                              cy="40"
-                              r={donut.radius}
-                              fill="none"
-                              stroke="#e4e4e7"
-                              strokeWidth="10"
-                            />
-                            <circle
-                              cx="40"
-                              cy="40"
-                              r={donut.radius}
-                              fill="none"
-                              stroke="#10b981"
-                              strokeWidth="10"
-                              strokeDasharray={donut.categorizedDash}
-                            />
-                            <circle
-                              cx="40"
-                              cy="40"
-                              r={donut.radius}
-                              fill="none"
-                              stroke="#18181b"
-                              strokeWidth="10"
-                              strokeDasharray={donut.unidentifiedDash}
-                              strokeDashoffset={donut.unidentifiedOffset}
-                            />
-                          </svg>
+                  {spendControl ? (
+                    <div className="pt-2 space-y-2">
+                      <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                        <div className="w-16">💸 Gasto</div>
+                        <div className="h-2 flex-1 rounded-full bg-zinc-100 overflow-hidden">
+                          <div
+                            className="h-2 bg-rose-500"
+                            style={{ width: `${spendControl.spentPct}%` }}
+                          />
+                          <div
+                            className="h-2 bg-emerald-500"
+                            style={{ width: `${spendControl.remainingPct}%` }}
+                          />
                         </div>
-                        <div className="space-y-1 text-xs text-zinc-600">
-                          <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-zinc-900" />
-                            No identificado {donut.pctUnidentifiedLabel}%
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                            Categorizado {donut.pctCategorizedLabel}%
-                          </div>
+                        <div className="w-8 text-right">{spendControl.spentLabel}%</div>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                        <div className="w-16">💰 Ahorro</div>
+                        <div className="h-2 flex-1 rounded-full bg-zinc-100 overflow-hidden">
+                          <div
+                            className={`h-2 ${
+                              spendControl.savingNegative
+                                ? "bg-amber-500"
+                                : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${spendControl.savingPct}%` }}
+                          />
                         </div>
+                        <div className="w-8 text-right">{spendControl.savingLabel}%</div>
                       </div>
-                    ) : (
-                      <div className="text-xs text-zinc-500">
-                        No hay gastos para graficar.
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="text-sm text-zinc-600">Cargando…</div>
-              )}
-            </CardBody>
-          </Card>
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="text-sm font-medium text-zinc-900">
+                  Gasto por método de pago
+                </div>
+                <div className="text-xs text-zinc-600">
+                  /months/:monthId/spend-by-card
+                </div>
+              </CardHeader>
+              <CardBody>
+                {cardSpend ? (
+                  cardSpend.items.length === 0 ? (
+                    <div className="text-xs text-zinc-500">
+                      Sin gastos en este mes.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="text-xs text-zinc-500">
+                        Total {money(cardSpend.totalSpent)}
+                      </div>
+                      {cardSpend.items.map((item) => {
+                        const pct = Math.round(item.pct * 100);
+                        return (
+                          <div key={item.paymentMethodId} className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="text-zinc-700">
+                                {item.paymentMethodName}
+                              </div>
+                              <div className="text-zinc-600">
+                                {money(item.spent)} · {pct}%
+                              </div>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-zinc-100">
+                              <div
+                                className="h-2 rounded-full bg-zinc-900"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                  <div className="text-sm text-zinc-600">Cargando…</div>
+                )}
+              </CardBody>
+            </Card>
+          </div>
 
           <div className="lg:col-span-2">
             <Card>
@@ -426,6 +562,72 @@ export default function InboxUnidentified() {
               </CardHeader>
 
               <CardBody>
+                {summary ? (
+                  <div className="mb-4 rounded-lg border border-zinc-100 bg-zinc-50 p-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="text-zinc-600">
+                        No identificado (gastado)
+                      </div>
+                      <div className="font-semibold">
+                        {money(summary.unidentifiedSpent)}
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      {donut ? (
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-14 w-14">
+                            <svg
+                              className="h-14 w-14 -rotate-90"
+                              viewBox="0 0 80 80"
+                            >
+                              <circle
+                                cx="40"
+                                cy="40"
+                                r={donut.radius}
+                                fill="none"
+                                stroke="#e4e4e7"
+                                strokeWidth="10"
+                              />
+                              <circle
+                                cx="40"
+                                cy="40"
+                                r={donut.radius}
+                                fill="none"
+                                stroke="#10b981"
+                                strokeWidth="10"
+                                strokeDasharray={donut.categorizedDash}
+                              />
+                              <circle
+                                cx="40"
+                                cy="40"
+                                r={donut.radius}
+                                fill="none"
+                                stroke="#18181b"
+                                strokeWidth="10"
+                                strokeDasharray={donut.unidentifiedDash}
+                                strokeDashoffset={donut.unidentifiedOffset}
+                              />
+                            </svg>
+                          </div>
+                          <div className="space-y-1 text-xs text-zinc-600">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-zinc-900" />
+                              No identificado {donut.pctUnidentifiedLabel}%
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                              Categorizado {donut.pctCategorizedLabel}%
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-zinc-500">
+                          No hay gastos para graficar.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
                 {loading ? (
                   <div className="text-sm text-zinc-600">Cargando…</div>
                 ) : rows.length === 0 ? (
@@ -452,6 +654,7 @@ export default function InboxUnidentified() {
                             <th className="py-2 pr-3">Monto</th>
                             <th className="py-2 pr-3">Método</th>
                             <th className="py-2">Categoría</th>
+                            <th className="py-2 pl-3 text-right">Acciones</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -472,6 +675,7 @@ export default function InboxUnidentified() {
                               <td className="py-2">
                                 <Select
                                   value=""
+                                  disabled={savingId === t.id}
                                   onChange={(v) => recategorize(t, v)}
                                 >
                                   <option value="" disabled>
@@ -492,6 +696,32 @@ export default function InboxUnidentified() {
                                     ),
                                   )}
                                 </Select>
+                              </td>
+                              <td className="py-2 pl-3 text-right">
+                                <button
+                                  className="h-8 w-8 rounded-md border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                                  onClick={() => handleDelete(t)}
+                                  disabled={savingId === t.id}
+                                  aria-label="Eliminar"
+                                  title="Eliminar"
+                                >
+                                  <svg
+                                    className="mx-auto h-4 w-4"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <path d="M3 6h18" />
+                                    <path d="M8 6V4h8v2" />
+                                    <path d="M6 6l1 14h10l1-14" />
+                                    <path d="M10 11v6" />
+                                    <path d="M14 11v6" />
+                                  </svg>
+                                </button>
                               </td>
                             </tr>
                           ))}
@@ -523,6 +753,13 @@ export default function InboxUnidentified() {
           paymentMethods={paymentMethods}
           onClose={() => setIncomeOpen(false)}
           onCreate={handleCreateIncome}
+        />
+        <CreateTransferModal
+          open={transferOpen}
+          monthId={monthId}
+          paymentMethods={paymentMethods}
+          onClose={() => setTransferOpen(false)}
+          onCreate={handleCreateTransfer}
         />
 
         <CreateExpenseModal

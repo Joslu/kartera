@@ -17,7 +17,7 @@ export async function summaryRoutes(app: FastifyInstance) {
 
     // 1) Totales de income
     const incomeAgg = await prisma.income.aggregate({
-      where: { monthId },
+      where: { monthId, isTransfer: false },
       _sum: { amount: true },
     });
     const totalIncome = decToNumber(incomeAgg._sum.amount);
@@ -146,4 +146,47 @@ export async function summaryRoutes(app: FastifyInstance) {
       categories,
     };
   });
+
+  // GET /months/:monthId/spend-by-card
+  app.get<{ Params: { monthId: string } }>(
+    "/months/:monthId/spend-by-card",
+    async (req, reply) => {
+      const { monthId } = req.params;
+
+      const month = await prisma.month.findUnique({ where: { id: monthId } });
+      if (!month) return reply.status(404).send({ error: "month not found" });
+
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          monthId,
+          category: { kind: "EXPENSE" },
+        },
+        include: { paymentMethod: true },
+        orderBy: [{ date: "asc" }],
+      });
+
+      const byMethod = new Map<string, { id: string; name: string; spent: number }>();
+      let totalSpent = 0;
+
+      for (const t of transactions) {
+        const spent = decToNumber(t.amount);
+        totalSpent += spent;
+        const pm = t.paymentMethod;
+        const row = byMethod.get(pm.id) ?? { id: pm.id, name: pm.name, spent: 0 };
+        row.spent += spent;
+        byMethod.set(pm.id, row);
+      }
+
+      const items = Array.from(byMethod.values())
+        .map((row) => ({
+          paymentMethodId: row.id,
+          paymentMethodName: row.name,
+          spent: row.spent,
+          pct: totalSpent > 0 ? row.spent / totalSpent : 0,
+        }))
+        .sort((a, b) => b.spent - a.spent);
+
+      return { month, totalSpent, items };
+    }
+  );
 }

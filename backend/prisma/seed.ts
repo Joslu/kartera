@@ -42,6 +42,7 @@ async function main() {
     name: string;
     kind: CategoryKind;
     sortOrder: number;
+    isSystem?: boolean;
   }> = [
     // Hogar
     { groupName: "Hogar", name: "Renta/Hipoteca", kind: "EXPENSE", sortOrder: 10 },
@@ -66,7 +67,7 @@ async function main() {
     { groupName: "Estabilidad/Metas", name: "Fondo de emergencia", kind: "EXPENSE", sortOrder: 20 },
 
     // Movimientos (TRACKING)
-    { groupName: "Movimientos", name: "No identificado", kind: "EXPENSE", sortOrder: 0 },
+    { groupName: "Movimientos", name: "No identificado", kind: "EXPENSE", sortOrder: 0, isSystem: true },
     { groupName: "Movimientos", name: "Pago TDC Banamex", kind: "TRACKING", sortOrder: 10 },
     { groupName: "Movimientos", name: "Pago TDC NU", kind: "TRACKING", sortOrder: 20 },
     { groupName: "Movimientos", name: "Retiro efectivo (Débito BBVA)", kind: "TRACKING", sortOrder: 30 },
@@ -83,6 +84,7 @@ async function main() {
         kind: c.kind,
         sortOrder: c.sortOrder,
         isActive: true,
+        isSystem: (c as any).isSystem ?? false,
       },
       create: {
         groupId,
@@ -90,6 +92,7 @@ async function main() {
         kind: c.kind,
         sortOrder: c.sortOrder,
         isActive: true,
+        isSystem: (c as any).isSystem ?? false,
       },
     });
   }

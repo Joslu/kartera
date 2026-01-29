@@ -14,6 +14,10 @@ type CreateCategoryGroupBody = {
   sortOrder?: number;
 };
 
+type UpdateCategoryBody = {
+  name?: string;
+};
+
 export async function categoriesRoutes(app: FastifyInstance) {
   // GET /categories
   // Devuelve categorías activas con su grupo, ordenadas para UI
@@ -154,8 +158,8 @@ export async function categoriesRoutes(app: FastifyInstance) {
     });
     if (!category) return reply.status(404).send({ error: "category not found" });
 
-    if (category.name.toLowerCase() === "no identificado") {
-      return reply.status(400).send({ error: "cannot delete default category" });
+    if (category.isSystem) {
+      return reply.status(400).send({ error: "cannot delete system category" });
     }
 
     if (category.assignments.length > 0 || category.transactions.length > 0) {
@@ -167,4 +171,42 @@ export async function categoriesRoutes(app: FastifyInstance) {
     await prisma.category.delete({ where: { id } });
     return reply.status(204).send();
   });
+
+  // PATCH /categories/:id
+  app.patch<{ Params: { id: string }; Body: UpdateCategoryBody }>(
+    "/categories/:id",
+    async (req, reply) => {
+      const { id } = req.params;
+      const body = req.body ?? ({} as UpdateCategoryBody);
+
+      const existing = await prisma.category.findUnique({ where: { id } });
+      if (!existing) return reply.status(404).send({ error: "category not found" });
+
+      if (existing.isSystem) {
+        return reply.status(400).send({ error: "cannot rename system category" });
+      }
+
+      if (body.name !== undefined) {
+        if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
+          return reply.status(400).send({ error: "name is required" });
+        }
+      }
+
+      try {
+        const updated = await prisma.category.update({
+          where: { id },
+          data: {
+            name: body.name?.trim(),
+          },
+          include: { group: true },
+        });
+        return updated;
+      } catch (err: any) {
+        if (err?.code === "P2002") {
+          return reply.status(409).send({ error: "category already exists in group" });
+        }
+        throw err;
+      }
+    },
+  );
 }

@@ -107,6 +107,15 @@ function getPaymentWindowFromCycle(range: { start: Date; end: Date }, daysAfterC
   return { start, end };
 }
 
+function getPaymentRangeFromCycle(
+  range: { start: Date; end: Date },
+  daysAfterCutoff?: number | null
+) {
+  const window = getPaymentWindowFromCycle(range, daysAfterCutoff);
+  if (!window) return range;
+  return window;
+}
+
 function decToNumber(v: any): number {
   if (v === null || v === undefined) return 0;
   return Number(v.toString());
@@ -326,6 +335,7 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
       cards.map(async (card) => {
         const range = getCycleRangeForMode(today, card.cutoffDay, cycleMode);
         const window = getPaymentWindowFromCycle(range, card.dueDay);
+        const paymentRange = getPaymentRangeFromCycle(range, card.dueDay);
         const [spentAgg, paymentAgg] = await Promise.all([
           prisma.transaction.aggregate({
             where: {
@@ -338,7 +348,7 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
             ? prisma.transaction.aggregate({
                 where: {
                   categoryId: card.paymentCategoryId,
-                  date: { gte: range.start, lte: range.end },
+                  date: { gte: paymentRange.start, lte: paymentRange.end },
                 },
                 _sum: { amount: true },
               })
@@ -397,6 +407,7 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
     const today = new Date();
     const range = getCycleRangeForMode(today, card.cutoffDay, cycleMode);
     const window = getPaymentWindowFromCycle(range, card.dueDay);
+    const paymentRange = getPaymentRangeFromCycle(range, card.dueDay);
     const todayDate = toDateOnly(today);
     const windowStart = window ? toDateOnly(window.start) : null;
     const windowEnd = window ? toDateOnly(window.end) : null;
@@ -414,7 +425,7 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
         ? prisma.transaction.findMany({
             where: {
               categoryId: card.paymentCategoryId,
-              date: { gte: range.start, lte: range.end },
+              date: { gte: paymentRange.start, lte: paymentRange.end },
             },
             include: { category: { select: { id: true, name: true } } },
             orderBy: [{ date: "asc" }, { createdAt: "asc" }],

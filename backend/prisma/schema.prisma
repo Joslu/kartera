@@ -47,6 +47,7 @@ model Category {
   name      String
   kind      CategoryKind
   isActive  Boolean      @default(true)
+  isSystem  Boolean      @default(false)
   sortOrder Int          @default(0)
 
   group        CategoryGroup      @relation(fields: [groupId], references: [id], onDelete: Restrict)
@@ -57,6 +58,7 @@ model Category {
   @@unique([groupId, name])
   @@index([groupId])
   @@index([kind])
+  @@index([isSystem])
 }
 
 model Income {
@@ -67,6 +69,7 @@ model Income {
   source  String?
   note    String?
   paymentMethodId String?
+  isTransfer Boolean @default(false)
 
   month Month @relation(fields: [monthId], references: [id], onDelete: Cascade)
   paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
@@ -74,6 +77,7 @@ model Income {
   @@index([monthId])
   @@index([date])
   @@index([paymentMethodId])
+  @@index([isTransfer])
 }
 
 model BudgetAssignment {

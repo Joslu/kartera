@@ -25,9 +25,10 @@ type TransactionRow = {
   description: string;
   amount: number;
   type: "INCOME" | "EXPENSE";
+  categoryKind?: "EXPENSE" | "TRACKING";
+  categoryName?: string;
   paymentMethodName?: string;
   paymentMethodId?: string | null;
-  categoryName?: string;
   groupName?: string;
   categoryId?: string | null;
 };
@@ -104,6 +105,7 @@ export default function MonthTransactions() {
             description: t.description,
             amount: Number(t.amount ?? 0),
             type: "EXPENSE",
+            categoryKind: t.category?.kind ?? "EXPENSE",
             paymentMethodName: t.paymentMethod?.name,
             paymentMethodId: t.paymentMethodId,
             categoryName: t.category?.name ?? "Sin categoría",
@@ -114,7 +116,7 @@ export default function MonthTransactions() {
         const incRows: TransactionRow[] = (incRes.incomes ?? []).map((i) => ({
           id: i.id,
           date: normalizeDateOnly(i.date),
-          description: i.source?.trim() || "Ingreso",
+          description: i.isTransfer ? `Transferencia · ${i.source?.trim() || "Ingreso"}` : (i.source?.trim() || "Ingreso"),
           amount: Number(i.amount ?? 0),
           type: "INCOME",
           paymentMethodName: i.paymentMethod?.name ?? "—",
@@ -425,7 +427,13 @@ export default function MonthTransactions() {
                                 {t.description}
                               </td>
                               <td className="py-3 pr-3 text-zinc-700">
-                                {t.type === "INCOME" ? "Ingreso" : "Gasto"}
+                                {t.type === "INCOME"
+                                  ? "Ingreso"
+                                  : t.categoryKind === "TRACKING"
+                                    ? t.categoryName?.toLowerCase() === "transferencias"
+                                      ? "Transferencia"
+                                      : "Movimiento"
+                                    : "Gasto"}
                               </td>
                               <td className="py-3 pr-3 text-zinc-700">
                                 {t.type === "EXPENSE" && isEditing ? (

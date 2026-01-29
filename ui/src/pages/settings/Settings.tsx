@@ -11,6 +11,7 @@ import {
   deleteCategory,
   createCategoryGroup,
   deleteCategoryGroup,
+  patchCategory,
   getPaymentMethods,
   createPaymentMethod,
   patchPaymentMethod,
@@ -48,6 +49,9 @@ export default function Settings() {
   const [groupSaving, setGroupSaving] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
   const [groupDeleteMode, setGroupDeleteMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState<string>("");
   const [monthForm, setMonthForm] = useState<{ year: string; month: string }>({
     year: String(new Date().getFullYear()),
     month: String(new Date().getMonth() + 1),
@@ -216,6 +220,37 @@ export default function Settings() {
       setToast({
         type: "error",
         message: e?.message ?? "No se pudo eliminar",
+      });
+    }
+  }
+
+  async function handleStartEditCategory(category: Category) {
+    if (!editMode || deleteMode) return;
+    setEditingCategoryId(category.id);
+    setEditingCategoryName(category.name);
+  }
+
+  function handleCancelEditCategory() {
+    setEditingCategoryId(null);
+    setEditingCategoryName("");
+  }
+
+  async function handleSaveEditCategory(category: Category) {
+    if (!editingCategoryName.trim()) {
+      setToast({ type: "error", message: "Nombre requerido" });
+      return;
+    }
+    try {
+      await patchCategory(category.id, { name: editingCategoryName.trim() });
+      const cats = await getCategories();
+      setCategories(cats);
+      setEditingCategoryId(null);
+      setEditingCategoryName("");
+      setToast({ type: "success", message: "Categoría actualizada" });
+    } catch (e: any) {
+      setToast({
+        type: "error",
+        message: e?.message ?? "No se pudo actualizar categoría",
       });
     }
   }
@@ -627,23 +662,63 @@ export default function Settings() {
                                 className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700"
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="text-zinc-900">
-                                    {c.name}
-                                  </span>
+                                  {editingCategoryId === c.id && editMode ? (
+                                    <input
+                                      className="h-7 w-full rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-900 outline-none focus:ring-2 focus:ring-zinc-200"
+                                      value={editingCategoryName}
+                                      onChange={(e) =>
+                                        setEditingCategoryName(e.target.value)
+                                      }
+                                      disabled={deleteMode}
+                                    />
+                                  ) : (
+                                    <span className="text-zinc-900">
+                                      {c.name}
+                                    </span>
+                                  )}
                                   <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600">
                                     {c.kind}
                                   </span>
                                 </div>
-                                {deleteMode ? (
-                                  <div className="mt-2 flex justify-end">
+                                {editingCategoryId === c.id && editMode ? (
+                                  <div className="mt-2 flex justify-end gap-2">
                                     <button
-                                      className="h-7 rounded-md border border-rose-200 bg-rose-50 px-2 text-xs text-rose-700 hover:bg-rose-100"
-                                      onClick={() => handleDelete(c)}
+                                      className="h-7 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-700 hover:bg-zinc-50"
+                                      onClick={handleCancelEditCategory}
+                                      disabled={deleteMode}
                                     >
-                                      Eliminar
+                                      Cancelar
+                                    </button>
+                                    <button
+                                      className="h-7 rounded-md bg-zinc-900 px-2 text-xs text-white hover:bg-zinc-800"
+                                      onClick={() => handleSaveEditCategory(c)}
+                                      disabled={deleteMode}
+                                    >
+                                      Guardar
                                     </button>
                                   </div>
-                                ) : null}
+                                ) : (
+                                  <div className="mt-2 flex justify-end gap-2">
+                                    {editMode ? (
+                                      <button
+                                        className="h-7 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-700 hover:bg-zinc-50"
+                                        onClick={() => handleStartEditCategory(c)}
+                                        disabled={deleteMode || c.isSystem}
+                                      >
+                                        Editar
+                                      </button>
+                                    ) : null}
+                                    {deleteMode ? (
+                                      <button
+                                        className="h-7 rounded-md border border-rose-200 bg-rose-50 px-2 text-xs text-rose-700 hover:bg-rose-100"
+                                        onClick={() => handleDelete(c)}
+                                        disabled={c.isSystem}
+                                      >
+                                        Eliminar
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -656,9 +731,11 @@ export default function Settings() {
                     <div className="flex items-center gap-2">
                       <button
                         className="flex h-8 items-center gap-2 rounded-md bg-rose-600 px-3 text-xs text-white hover:bg-rose-500"
-                        onClick={() =>
-                          setGroupDeleteMode((current) => !current)
-                        }
+                        onClick={() => {
+                          setGroupDeleteMode((current) => !current);
+                          setEditMode(false);
+                          handleCancelEditCategory();
+                        }}
                         aria-label="Eliminar grupos"
                       >
                         <span>Eliminar grupos</span>
@@ -680,8 +757,36 @@ export default function Settings() {
                         </svg>
                       </button>
                       <button
+                        className="flex h-8 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
+                        onClick={() => {
+                          setEditMode((current) => !current);
+                          setDeleteMode(false);
+                          handleCancelEditCategory();
+                        }}
+                        aria-label="Editar categorías"
+                      >
+                        <span>Editar categorías</span>
+                        <svg
+                          className="h-4 w-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      </button>
+                      <button
                         className="flex h-8 items-center gap-2 rounded-md bg-rose-600 px-3 text-xs text-white hover:bg-rose-500"
-                        onClick={() => setDeleteMode((current) => !current)}
+                        onClick={() => {
+                          setDeleteMode((current) => !current);
+                          setEditMode(false);
+                          handleCancelEditCategory();
+                        }}
                         aria-label="Eliminar categorías"
                       >
                         <span>Eliminar categorías</span>
@@ -702,6 +807,20 @@ export default function Settings() {
                           <path d="M14 11v6" />
                         </svg>
                       </button>
+                      {(groupDeleteMode || deleteMode || editMode) ? (
+                        <button
+                          className="flex h-8 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-xs text-zinc-700 hover:bg-zinc-50"
+                          onClick={() => {
+                            setGroupDeleteMode(false);
+                            setDeleteMode(false);
+                            setEditMode(false);
+                            handleCancelEditCategory();
+                          }}
+                          aria-label="Cancelar eliminación"
+                        >
+                          <span>Cancelar</span>
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>

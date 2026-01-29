@@ -8,6 +8,7 @@ type CreateIncomeBody = {
   source?: string;
   note?: string;
   paymentMethodId?: string;
+  isTransfer?: boolean;
 };
 
 type UpdateIncomeBody = {
@@ -25,7 +26,7 @@ export async function incomesRoutes(app: FastifyInstance) {
   // POST /incomes
   app.post<{ Body: CreateIncomeBody }>("/incomes", async (req, reply) => {
     const body = req.body ?? ({} as CreateIncomeBody);
-    const { monthId, date, amount, source, note, paymentMethodId } = body;
+    const { monthId, date, amount, source, note, paymentMethodId, isTransfer } = body;
 
     if (!monthId || typeof monthId !== "string") {
       return reply.status(400).send({ error: "monthId is required" });
@@ -38,6 +39,9 @@ export async function incomesRoutes(app: FastifyInstance) {
     }
     if (!paymentMethodId || typeof paymentMethodId !== "string") {
       return reply.status(400).send({ error: "paymentMethodId is required" });
+    }
+    if (isTransfer !== undefined && typeof isTransfer !== "boolean") {
+      return reply.status(400).send({ error: "isTransfer must be boolean" });
     }
 
     // Asegurar que el Month exista (mensaje claro)
@@ -68,6 +72,7 @@ export async function incomesRoutes(app: FastifyInstance) {
         source: source?.trim() || null,
         note: note?.trim() || null,
         paymentMethodId,
+        isTransfer: isTransfer ?? false,
       },
       include: { paymentMethod: true },
     });
