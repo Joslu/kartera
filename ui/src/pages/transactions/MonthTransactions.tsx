@@ -105,7 +105,10 @@ export default function MonthTransactions() {
             description: t.description,
             amount: Number(t.amount ?? 0),
             type: "EXPENSE",
-            categoryKind: t.category?.kind ?? "EXPENSE",
+            categoryKind:
+              t.category?.kind === "TRACKING" || t.category?.kind === "EXPENSE"
+                ? t.category.kind
+                : "EXPENSE",
             paymentMethodName: t.paymentMethod?.name,
             paymentMethodId: t.paymentMethodId,
             categoryName: t.category?.name ?? "Sin categoría",
@@ -399,7 +402,11 @@ export default function MonthTransactions() {
                       <tr
                         key={`${t.type}:${t.id}`}
                         className={`border-b border-zinc-50 ${
-                          t.type === "INCOME" ? "bg-emerald-50/60" : ""
+                          t.type === "INCOME"
+                            ? "bg-emerald-50/60"
+                            : t.categoryKind === "TRACKING"
+                              ? "bg-amber-50/60"
+                              : ""
                         }`}
                       >
                         {(() => {

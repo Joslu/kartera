@@ -34,6 +34,10 @@ function toNumber(value: unknown) {
   return 0;
 }
 
+function isSavingsTracking(row: { kind: "EXPENSE" | "TRACKING"; categoryName: string }) {
+  return row.kind === "TRACKING" && row.categoryName.toLowerCase().includes("ahorro");
+}
+
 function buildDrafts(categories: Category[], summary: MonthSummary | null) {
   const summaryById = new Map<string, MonthSummary["categories"][number]>();
   for (const row of summary?.categories ?? []) {
@@ -137,11 +141,13 @@ export default function MonthBudgets() {
       const s = summaryById.get(cat.id);
       const assigned = toNumber(s?.assigned ?? 0);
       const spent = toNumber(s?.spent ?? 0);
+      const kind =
+        s?.kind === "TRACKING" || s?.kind === "EXPENSE" ? s.kind : cat.kind;
       items.push({
         categoryId: cat.id,
         categoryName: cat.name,
         groupName: cat.groupName,
-        kind: s?.kind ?? cat.kind,
+        kind,
         assigned,
         spent,
         available: toNumber(s?.available ?? assigned - spent),
@@ -153,11 +159,12 @@ export default function MonthBudgets() {
 
     for (const s of summary?.categories ?? []) {
       if (seen.has(s.categoryId)) continue;
+      const kind = s.kind === "TRACKING" || s.kind === "EXPENSE" ? s.kind : "EXPENSE";
       items.push({
         categoryId: s.categoryId,
         categoryName: s.categoryName,
         groupName: s.groupName,
-        kind: s.kind as "EXPENSE" | "TRACKING",
+        kind,
         assigned: toNumber(s.assigned),
         spent: toNumber(s.spent),
         available: toNumber(s.available),
@@ -177,10 +184,18 @@ export default function MonthBudgets() {
     });
   }, [categories, summary]);
 
+  const visibleRows = useMemo(() => {
+    return rows.filter((row) => row.kind === "EXPENSE");
+  }, [rows]);
+
+  const savingsRows = useMemo(() => {
+    return rows.filter((row) => isSavingsTracking(row));
+  }, [rows]);
+
   const groupedRows = useMemo(() => {
     const groups: Array<{ name: string; rows: BudgetRow[] }> = [];
     const map = new Map<string, { name: string; rows: BudgetRow[] }>();
-    for (const row of rows) {
+    for (const row of visibleRows) {
       const key = row.groupName || "Sin grupo";
       let group = map.get(key);
       if (!group) {
@@ -191,7 +206,7 @@ export default function MonthBudgets() {
       group.rows.push(row);
     }
     return groups;
-  }, [rows]);
+  }, [visibleRows]);
 
   const groupChart = useMemo(() => {
     const items = groupedRows.map((group) => {
@@ -211,11 +226,16 @@ export default function MonthBudgets() {
     const income = toNumber(summary?.totals.income ?? 0);
     const assigned = toNumber(summary?.totals.assigned ?? 0);
     const spent = toNumber(summary?.totals.spentExpense ?? 0);
+    const base = income > 0 ? income : Math.max(assigned, 1);
+    const assignedPct = Math.min(100, (assigned / base) * 100);
+    const remainingPct = Math.max(0, 100 - assignedPct);
     return {
       income,
       assigned,
       spent,
       available: income - assigned,
+      assignedPct,
+      remainingPct,
     };
   }, [summary]);
 
@@ -291,9 +311,25 @@ export default function MonthBudgets() {
             >
               {money(totals.available)}
             </div>
+            <div className="mt-2">
+              <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden">
+                <div
+                  className="h-2 bg-zinc-900"
+                  style={{ width: `${totals.assignedPct}%` }}
+                />
+                <div
+                  className="h-2 bg-emerald-500"
+                  style={{ width: `${totals.remainingPct}%` }}
+                />
+              </div>
+              <div className="mt-1 flex items-center justify-between text-[11px] text-zinc-500">
+                <span>Asignado</span>
+                <span>Disponible</span>
+              </div>
+            </div>
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <div className="text-xs text-zinc-600">Movimientos</div>
+            <div className="text-xs text-zinc-600">Gasto del mes</div>
             <div className="text-lg font-semibold text-zinc-900">
               {money(totals.spent)}
             </div>
@@ -376,6 +412,117 @@ export default function MonthBudgets() {
 
         <div className="h-6" />
 
+        {savingsRows.length > 0 ? (
+          <>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-zinc-900">
+                      Ahorro
+                    </div>
+                    <div className="text-xs text-zinc-600">
+                      Meta opcional · Guardado hasta hoy
+                    </div>
+                  </div>
+                  <div className="text-xs text-zinc-600">
+                    {savingsRows.length} categorías
+                  </div>
+                </div>
+              </CardHeader>
+              <CardBody>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="text-xs text-zinc-500">
+                      <tr className="border-b border-zinc-100">
+                        <th className="py-2 pr-3">Categoría</th>
+                        <th className="py-2 pr-3">Meta</th>
+                        <th className="py-2 pr-3">Guardado</th>
+                        <th className="py-2 pr-3">Progreso</th>
+                        <th className="py-2 text-right">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {savingsRows.map((row) => {
+                        const draft = drafts[row.categoryId] ?? "";
+                        const draftNumber = Number(draft);
+                        const isValid =
+                          Number.isFinite(draftNumber) && draftNumber >= 0;
+                        const isDirty =
+                          isValid &&
+                          Math.abs(draftNumber - row.assigned) > 0.0001;
+                        const isEditable = isSavingsTracking(row);
+                        const progress =
+                          row.assigned > 0 ? Math.min(100, (row.spent / row.assigned) * 100) : 0;
+
+                        return (
+                          <tr
+                            key={row.categoryId}
+                            className="border-b border-zinc-50"
+                          >
+                            <td className="py-3 pr-3 text-zinc-900">
+                              {row.categoryName}
+                            </td>
+                            <td className="py-3 pr-3">
+                              <input
+                                className="h-9 w-32 rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200 disabled:opacity-60"
+                                inputMode="decimal"
+                                value={draft}
+                                onChange={(e) =>
+                                  setDrafts((d) => ({
+                                    ...d,
+                                    [row.categoryId]: e.target.value,
+                                  }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && isEditable && isDirty) {
+                                    handleSave(row);
+                                  }
+                                }}
+                                disabled={!isEditable || savingId === row.categoryId}
+                              />
+                            </td>
+                            <td className="py-3 pr-3 text-zinc-700">
+                              {money(row.spent)}
+                            </td>
+                            <td className="py-3 pr-3">
+                              <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                <div className="h-2 w-24 rounded-full bg-zinc-100">
+                                  <div
+                                    className="h-2 rounded-full bg-emerald-500"
+                                    style={{ width: `${progress}%` }}
+                                  />
+                                </div>
+                                <span>{Math.round(progress)}%</span>
+                              </div>
+                            </td>
+                            <td className="py-3 text-right">
+                              <button
+                                className="h-9 rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                                onClick={() => handleSave(row)}
+                                disabled={
+                                  !isEditable ||
+                                  !isDirty ||
+                                  savingId === row.categoryId
+                                }
+                              >
+                                {savingId === row.categoryId
+                                  ? "Guardando…"
+                                  : "Guardar"}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardBody>
+            </Card>
+            <div className="h-6" />
+          </>
+        ) : null}
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
@@ -388,14 +535,14 @@ export default function MonthBudgets() {
                 </div>
               </div>
               <div className="text-xs text-zinc-600">
-                {rows.length} categorías
+                {visibleRows.length} categorías
               </div>
             </div>
           </CardHeader>
           <CardBody>
             {loading ? (
               <div className="text-sm text-zinc-600">Cargando…</div>
-            ) : rows.length === 0 ? (
+            ) : visibleRows.length === 0 ? (
               <div className="text-sm text-zinc-600">
                 No hay categorías para este mes.
               </div>
@@ -430,7 +577,8 @@ export default function MonthBudgets() {
                           const isDirty =
                             isValid &&
                             Math.abs(draftNumber - row.assigned) > 0.0001;
-                          const isEditable = row.kind === "EXPENSE";
+                          const isEditable =
+                            row.kind === "EXPENSE" || isSavingsTracking(row);
 
                           return (
                             <tr
