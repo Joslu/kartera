@@ -3,6 +3,7 @@ export type Category = {
   name: string;
   groupName: string;
   kind: "EXPENSE" | "TRACKING";
+  isSystem?: boolean;
   groupId?: string;
   sortOrder?: number;
   groupSortOrder?: number;
@@ -56,6 +57,7 @@ export type Income = {
   note?: string | null;
   paymentMethodId?: string | null;
   paymentMethod?: PaymentMethod | null;
+  isTransfer?: boolean;
 };
 
 export type MonthSummary = {
@@ -80,5 +82,21 @@ export type MonthSummary = {
     assigned: number;
     spent: number;
     available: number;
+  }>;
+};
+
+export type MonthSpendByCard = {
+  month: {
+    id: string;
+    year: number;
+    month: number;
+    createdAt: string;
+  };
+  totalSpent: number;
+  items: Array<{
+    paymentMethodId: string;
+    paymentMethodName: string;
+    spent: number;
+    pct: number;
   }>;
 };

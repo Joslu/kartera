@@ -5,6 +5,7 @@ import type {
   CreditCard,
   Income,
   MonthSummary,
+  MonthSpendByCard,
   PaymentMethod,
   PaymentMethodType,
   Transaction,
@@ -29,6 +30,7 @@ export async function getCategories() {
     name: c.name,
     groupName: c.group?.name ?? c.groupName ?? "Sin grupo",
     kind: c.kind ?? "EXPENSE",
+    isSystem: c.isSystem ?? false,
     groupId: c.groupId ?? c.group?.id,
     sortOrder: c.sortOrder,
     groupSortOrder: c.group?.sortOrder,
@@ -63,6 +65,13 @@ export function createCategory(body: {
   });
 }
 
+export function patchCategory(id: string, body: { name: string }) {
+  return api<Category>(`/categories/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export function deleteCategory(id: string) {
   return api<void>(`/categories/${id}`, { method: "DELETE" });
 }
@@ -91,6 +100,10 @@ export function patchTransaction(
 
 export function getMonthSummary(monthId: string) {
   return api<MonthSummary>(`/months/${monthId}/summary`);
+}
+
+export function getMonthSpendByCard(monthId: string) {
+  return api<MonthSpendByCard>(`/months/${monthId}/spend-by-card`);
 }
 
 export function getMonthAssignments(monthId: string) {
@@ -149,6 +162,7 @@ export function createIncome(body: {
   amount: number; // > 0
   source: string;
   paymentMethodId: string;
+  isTransfer?: boolean;
 }) {
   return api<{ id: string }>(`/incomes`, {
     method: "POST",
@@ -297,6 +311,21 @@ export async function getCreditCardCycle(cardId: string, cycle?: "current" | "pr
       categoryName?: string | null;
     }>;
   }>(`/credit-cards/${cardId}/cycle${qs}`);
+}
+
+export function createTransfer(body: {
+  monthId: string;
+  date: string;
+  amount: number;
+  fromPaymentMethodId: string;
+  toPaymentMethodId: string;
+  description?: string;
+  note?: string;
+}) {
+  return api<{ expenseTx: Transaction; income: Income }>(`/transfers`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export function deleteTransaction(id: string) {
