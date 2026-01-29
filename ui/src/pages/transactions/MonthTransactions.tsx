@@ -7,13 +7,14 @@ import {
   getMonthIncomes,
   getMonthTransactions,
   getMonths,
+  getPaymentMethods,
   patchTransaction,
   patchIncome,
   deleteTransaction,
   deleteIncome,
 } from "../../api/endpoints";
 import { MonthSelect } from "../inbox/MonthSelect";
-import type { Category } from "../../api/types";
+import type { Category, PaymentMethod } from "../../api/types";
 import { getStoredMonthId, setStoredMonthId } from "../../utils/month";
 
 type MonthRow = { id: string; year: number; month: number; createdAt: string };
@@ -24,7 +25,8 @@ type TransactionRow = {
   description: string;
   amount: number;
   type: "INCOME" | "EXPENSE";
-  paymentMethod?: string;
+  paymentMethodName?: string;
+  paymentMethodId?: string | null;
   categoryName?: string;
   groupName?: string;
   categoryId?: string | null;
@@ -43,9 +45,11 @@ export default function MonthTransactions() {
   );
   const [months, setMonths] = useState<MonthRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [monthLabel, setMonthLabel] = useState<string>("");
   const [rows, setRows] = useState<TransactionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [paymentFilterId, setPaymentFilterId] = useState<string>("ALL");
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<
@@ -56,24 +60,18 @@ export default function MonthTransactions() {
     message: string;
   } | null>(null);
 
-  const totals = useMemo(() => {
-    return rows.reduce(
-      (acc, t) => {
-        if (t.type === "INCOME") acc.income += Number(t.amount ?? 0);
-        else acc.expense += Number(t.amount ?? 0);
-        return acc;
-      },
-      { income: 0, expense: 0 },
-    );
-  }, [rows]);
-
   useEffect(() => {
     (async () => {
       try {
-        const [ms, cats] = await Promise.all([getMonths(), getCategories()]);
+        const [ms, cats, pms] = await Promise.all([
+          getMonths(),
+          getCategories(),
+          getPaymentMethods(),
+        ]);
         ms.sort((a, b) => b.year - a.year || b.month - a.month);
         setMonths(ms);
         setCategories(cats);
+        setPaymentMethods(pms);
 
         if (ms.length > 0 && !ms.some((m) => m.id === monthId)) {
           setMonthId(ms[0].id);
@@ -106,7 +104,8 @@ export default function MonthTransactions() {
             description: t.description,
             amount: Number(t.amount ?? 0),
             type: "EXPENSE",
-            paymentMethod: t.paymentMethod,
+            paymentMethodName: t.paymentMethod?.name,
+            paymentMethodId: t.paymentMethodId,
             categoryName: t.category?.name ?? "Sin categoría",
             groupName: t.category?.group?.name ?? "—",
             categoryId: t.categoryId,
@@ -118,7 +117,8 @@ export default function MonthTransactions() {
           description: i.source?.trim() || "Ingreso",
           amount: Number(i.amount ?? 0),
           type: "INCOME",
-          paymentMethod: "—",
+          paymentMethodName: i.paymentMethod?.name ?? "—",
+          paymentMethodId: i.paymentMethodId ?? null,
           categoryName: "Ingreso",
           groupName: "—",
           categoryId: null,
@@ -154,6 +154,24 @@ export default function MonthTransactions() {
     }
     return groups;
   }, [categories]);
+
+  const filteredRows = useMemo(() => {
+    if (paymentFilterId === "ALL") return rows;
+    return rows.filter(
+      (r) => r.type === "EXPENSE" && r.paymentMethodId === paymentFilterId,
+    );
+  }, [rows, paymentFilterId]);
+
+  const totals = useMemo(() => {
+    return filteredRows.reduce(
+      (acc, t) => {
+        if (t.type === "INCOME") acc.income += Number(t.amount ?? 0);
+        else acc.expense += Number(t.amount ?? 0);
+        return acc;
+      },
+      { income: 0, expense: 0 },
+    );
+  }, [filteredRows]);
 
   function rowKey(row: TransactionRow) {
     return `${row.type}:${row.id}`;
@@ -311,6 +329,22 @@ export default function MonthTransactions() {
           />
         </div>
 
+        <div className="mb-4 flex items-center gap-3 text-sm">
+          <label className="text-xs text-zinc-600">Metodo de pago</label>
+          <select
+            className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs outline-none focus:ring-2 focus:ring-zinc-200"
+            value={paymentFilterId}
+            onChange={(e) => setPaymentFilterId(e.target.value)}
+          >
+            <option value="ALL">Todos</option>
+            {paymentMethods.map((pm) => (
+              <option key={pm.id} value={pm.id}>
+                {pm.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
@@ -339,7 +373,7 @@ export default function MonthTransactions() {
           <CardBody>
             {loading ? (
               <div className="text-sm text-zinc-600">Cargando…</div>
-            ) : rows.length === 0 ? (
+            ) : filteredRows.length === 0 ? (
               <div className="text-sm text-zinc-600">
                 No hay transacciones para este mes.
               </div>
@@ -359,7 +393,7 @@ export default function MonthTransactions() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((t) => (
+                    {filteredRows.map((t) => (
                       <tr
                         key={`${t.type}:${t.id}`}
                         className={`border-b border-zinc-50 ${
@@ -426,7 +460,7 @@ export default function MonthTransactions() {
                                 {t.groupName ?? "—"}
                               </td>
                               <td className="py-3 pr-3 text-zinc-700">
-                                {t.paymentMethod ?? "—"}
+                                {t.paymentMethodName ?? "—"}
                               </td>
                               <td
                                 className={`py-3 text-center font-medium ${

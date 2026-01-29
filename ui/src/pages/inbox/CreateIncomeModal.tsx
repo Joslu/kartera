@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "../../components/Modal";
+import type { PaymentMethod } from "../../api/types";
 
 function todayISO() {
   const d = new Date();
@@ -12,19 +13,26 @@ function todayISO() {
 export function CreateIncomeModal({
   open,
   monthId,
+  paymentMethods,
   onClose,
   onCreate,
 }: {
   open: boolean;
   monthId: string;
+  paymentMethods: PaymentMethod[];
   onClose: () => void;
-  onCreate: (payload: { monthId: string; date: string; amount: number; source: string }) => Promise<void>;
+  onCreate: (payload: { monthId: string; date: string; amount: number; source: string; paymentMethodId: string }) => Promise<void>;
 }) {
   const [date, setDate] = useState(todayISO());
   const [amount, setAmount] = useState<string>("");
   const [source, setSource] = useState("");
+  const [paymentMethodId, setPaymentMethodId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectablePaymentMethods = useMemo(
+    () => paymentMethods.filter((m) => m.isActive && m.type !== "CREDIT"),
+    [paymentMethods],
+  );
 
   // reset cuando abre
   useEffect(() => {
@@ -32,8 +40,9 @@ export function CreateIncomeModal({
     setDate(todayISO());
     setAmount("");
     setSource("");
+    setPaymentMethodId(selectablePaymentMethods[0]?.id ?? "");
     setError(null);
-  }, [open]);
+  }, [open, selectablePaymentMethods]);
 
   const amountNumber = useMemo(() => Number(amount), [amount]);
 
@@ -43,6 +52,7 @@ export function CreateIncomeModal({
     Number.isFinite(amountNumber) &&
     amountNumber > 0 &&
     source.trim().length >= 2 &&
+    String(paymentMethodId).length > 0 &&
     !saving;
 
   async function submit() {
@@ -55,7 +65,7 @@ export function CreateIncomeModal({
 
     setSaving(true);
     try {
-      await onCreate({ monthId, date, amount: amountNumber, source: source.trim() });
+      await onCreate({ monthId, date, amount: amountNumber, source: source.trim(), paymentMethodId });
       onClose();
     } catch (e: any) {
       setError(e?.message ?? "No se pudo crear el ingreso");
@@ -96,6 +106,25 @@ export function CreateIncomeModal({
             value={source}
             onChange={(e) => setSource(e.target.value)}
           />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs text-zinc-600">Cuenta destino</label>
+          <select
+            className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+            value={paymentMethodId}
+            onChange={(e) => setPaymentMethodId(e.target.value)}
+          >
+            {selectablePaymentMethods.length === 0 ? (
+              <option value="">Sin métodos disponibles</option>
+            ) : (
+              selectablePaymentMethods.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))
+            )}
+          </select>
         </div>
 
         {error ? <div className="text-xs text-rose-700">{error}</div> : null}

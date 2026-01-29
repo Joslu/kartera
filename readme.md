@@ -1,6 +1,28 @@
-# Budget MVP – Full Stack
+# Kartera – Full Stack
 
-App de finanzas personales basada en **presupuesto mensual**, inspirada en YNAB pero con un enfoque **minimalista y educativo**.
+```text
+kartera@local:~$ Kartera es una app sencilla para organizar gastos, ingresos y el estado de tus tarjetas.
+kartera@local:~$ Captura, categoriza y revisa tu mes con una vista clara y rapida.
+
+
+$$\   $$\                     $$\                                  
+$$ | $$  |                    $$ |                                 
+$$ |$$  / $$$$$$\   $$$$$$\ $$$$$$\    $$$$$$\   $$$$$$\  $$$$$$\  
+$$$$$  /  \____$$\ $$  __$$\\_$$  _|  $$  __$$\ $$  __$$\ \____$$\ 
+$$  $$<   $$$$$$$ |$$ |  \__| $$ |    $$$$$$$$ |$$ |  \__|$$$$$$$ |
+$$ |\$$\ $$  __$$ |$$ |       $$ |$$\ $$   ____|$$ |     $$  __$$ |
+$$ | \$$\\$$$$$$$ |$$ |       \$$$$  |\$$$$$$$\ $$ |     \$$$$$$$ |
+\__|  \__|\_______|\__|        \____/  \_______|\__|      \_______|
+.
+.
+.
+.
+.
+.
+.
+
+by @joslu
+```
 
 Este repo contiene:
 - **Backend** (API) en Node.js + Fastify + Prisma + PostgreSQL
@@ -33,6 +55,9 @@ Sin autenticación (single user local) por ahora.
 - El **pago de TDC es una categoría**, no un gasto nuevo.
 - `date` = fecha contable
 - `createdAt` = cuándo se registró
+- Los **métodos de pago** son dinámicos (cash, débito, crédito).
+- Las **tarjetas de crédito** tienen corte y periodo de pago.
+- Los **ingresos** se asignan a una cuenta (cash o débito).
 
 ---
 
@@ -93,7 +118,7 @@ npm run dev
 
 ### 3) Migraciones + seed
 ```bash
-npx prisma migrate dev
+npx prisma migrate deploy
 npx prisma db seed
 ```
 
@@ -128,6 +153,7 @@ UI por defecto en `http://localhost:5173`
   - Gastos: fecha + categoría
   - Ingresos: fecha + monto
 - **Eliminar** ingresos y gastos
+- **Filtro por método de pago**
 
 ### Settings
 - Crear nuevas categorías
@@ -137,9 +163,17 @@ UI por defecto en `http://localhost:5173`
 - Eliminar grupos (modo borrar)
 - Crear y eliminar meses completos
 - Lista de grupos existentes
+- Métodos de pago (crear / activar / eliminar)
+- Tarjetas de crédito (corte + dias despues + categoría de pago)
 
 ### About
-- Pantalla informativa del producto
+- Pantalla informativa del producto (estilo terminal)
+
+### Tarjetas
+- Estado de deuda por ciclo (actual/anterior)
+- Indicador de periodo de pago
+- Detalle de gastos y pagos del ciclo
+- Cuentas débito con saldo (ingresos - gastos)
 
 ---
 
@@ -171,6 +205,19 @@ DELETE /incomes/:id
 POST   /transactions
 PATCH  /transactions/:id
 DELETE /transactions/:id
+
+GET    /payment-methods
+POST   /payment-methods
+PATCH  /payment-methods/:id
+DELETE /payment-methods/:id
+GET    /payment-methods/balances
+
+GET    /credit-cards
+POST   /credit-cards
+PATCH  /credit-cards/:id
+DELETE /credit-cards/:id
+GET    /credit-cards/summary
+GET    /credit-cards/:id/cycle
 
 POST   /budget-assignments
 ```

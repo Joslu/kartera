@@ -15,14 +15,34 @@ export type CategoryGroup = {
 };
 
 
-export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "OTHER";
+export type PaymentMethodType = "CASH" | "DEBIT" | "CREDIT";
+
+export type PaymentMethod = {
+  id: string;
+  name: string;
+  type: PaymentMethodType;
+  isActive: boolean;
+  sortOrder: number;
+  creditCard?: CreditCard | null;
+};
+
+export type CreditCard = {
+  id: string;
+  paymentMethodId: string;
+  cutoffDay: number;
+  dueDay?: number | null;
+  paymentCategoryId?: string | null;
+  paymentMethod?: PaymentMethod | null;
+  paymentCategory?: { id: string; name: string } | null;
+};
 
 export type Transaction = {
   id: string;
   date: string;        // YYYY-MM-DD
   description: string;
   amount: number;
-  paymentMethod: PaymentMethod;
+  paymentMethodId: string;
+  paymentMethod?: PaymentMethod | null;
   categoryId: string | null;
   note?: string | null;
   isReconciled?: boolean;
@@ -34,6 +54,8 @@ export type Income = {
   amount: number;
   source?: string | null;
   note?: string | null;
+  paymentMethodId?: string | null;
+  paymentMethod?: PaymentMethod | null;
 };
 
 export type MonthSummary = {

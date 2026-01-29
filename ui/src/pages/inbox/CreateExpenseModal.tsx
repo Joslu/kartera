@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "../../components/Modal";
-import type { Category } from "../../api/types";
+import type { Category, PaymentMethod } from "../../api/types";
 
 function todayISO() {
   const d = new Date();
@@ -10,47 +10,49 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// Ajusta esta lista si tu backend usa otros valores.
-// IMPORTANTE: el value debe coincidir con tu enum del backend.
-const PAYMENT_METHODS = ['CREDIT_BANAMEX', 'CREDIT_NUBANK', 'DEBIT_BBVA', 'CASH'] as const;
-
 export function CreateExpenseModal({
   open,
   monthId,
   categories,
+  paymentMethods,
   onClose,
   onCreate,
 }: {
   open: boolean;
   monthId: string;
   categories: Record<string, Category[]>; // { "Hogar": [..], "Comida": [..] }
+  paymentMethods: PaymentMethod[];
   onClose: () => void;
   onCreate: (payload: {
     monthId: string;
     date: string;
     amount: number;
     description: string;
-    paymentMethod: string;
+    paymentMethodId: string;
     categoryId?: string;
   }) => Promise<void>;
 }) {
   const [date, setDate] = useState(todayISO());
   const [amount, setAmount] = useState<string>("");
   const [description, setDescription] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
+  const [paymentMethodId, setPaymentMethodId] = useState<string>("");
   const [categoryId, setCategoryId] = useState<string>(""); // opcional
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectablePaymentMethods = useMemo(
+    () => paymentMethods.filter((m) => m.isActive),
+    [paymentMethods],
+  );
 
   useEffect(() => {
     if (!open) return;
     setDate(todayISO());
     setAmount("");
     setDescription("");
-    setPaymentMethod("CASH");
+    setPaymentMethodId(selectablePaymentMethods[0]?.id ?? "");
     setCategoryId("");
     setError(null);
-  }, [open]);
+  }, [open, selectablePaymentMethods]);
 
   const amountNumber = useMemo(() => Number(amount), [amount]);
 
@@ -60,7 +62,7 @@ export function CreateExpenseModal({
     Number.isFinite(amountNumber) &&
     amountNumber > 0 &&
     description.trim().length >= 2 &&
-    String(paymentMethod).length > 0 &&
+    String(paymentMethodId).length > 0 &&
     !saving;
 
   async function submit() {
@@ -77,7 +79,7 @@ export function CreateExpenseModal({
         date,
         amount: amountNumber,
         description: description.trim(),
-        paymentMethod,
+        paymentMethodId,
         categoryId: categoryId || undefined, // si viene vacío, no se manda
       });
       onClose();
@@ -126,18 +128,19 @@ export function CreateExpenseModal({
           <label className="mb-1 block text-xs text-zinc-600">Método de pago</label>
           <select
             className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
+            value={paymentMethodId}
+            onChange={(e) => setPaymentMethodId(e.target.value)}
           >
-            {PAYMENT_METHODS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
+            {selectablePaymentMethods.length === 0 ? (
+              <option value="">Sin métodos disponibles</option>
+            ) : (
+              selectablePaymentMethods.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))
+            )}
           </select>
-          <div className="mt-1 text-xs text-zinc-500">
-            Si tu backend usa otros valores, ajusta <code>PAYMENT_METHODS</code>.
-          </div>
         </div>
 
         <div>
