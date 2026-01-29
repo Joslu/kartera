@@ -124,7 +124,7 @@ export function getMonthTransactions(monthId: string) {
     month: { id: string; year: number; month: number; createdAt: string };
     transactions: Array<
       Transaction & {
-        category?: { name: string; group?: { name: string } | null } | null;
+        category?: { name: string; kind?: string; group?: { name: string } | null } | null;
       }
     >;
   }>(`/months/${monthId}/transactions`);
