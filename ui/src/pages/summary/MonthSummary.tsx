@@ -91,12 +91,12 @@ export default function MonthSummary() {
   }, [summary]);
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen theme-app-bg">
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-zinc-900">Resumen</h1>
-            <p className="text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-zinc-600">
               Vista general del mes seleccionado.
             </p>
           </div>
@@ -109,19 +109,19 @@ export default function MonthSummary() {
         </div>
 
         <div className="grid gap-3 md:grid-cols-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="theme-card rounded-2xl p-4">
             <div className="text-xs text-zinc-600">Ingresos</div>
             <div className="text-lg font-semibold text-zinc-900">
               {money(totals.income)}
             </div>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="theme-card rounded-2xl p-4">
             <div className="text-xs text-zinc-600">Gastos</div>
             <div className="text-lg font-semibold text-zinc-900">
               {money(totals.spent)}
             </div>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="theme-card rounded-2xl p-4">
             <div className="text-xs text-zinc-600">Net</div>
             <div
               className={`text-lg font-semibold ${
@@ -131,7 +131,7 @@ export default function MonthSummary() {
               {money(totals.net)}
             </div>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="theme-card rounded-2xl p-4">
             <div className="text-xs text-zinc-600">Sin asignar</div>
             <div
               className={`text-lg font-semibold ${

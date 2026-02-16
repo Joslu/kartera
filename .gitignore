@@ -29,4 +29,10 @@ yarn-error.log*
 # Prisma
 # =========================
 prisma/dev.db
+
+# =========================
+# Local backups
+# =========================
+backups/
+*.dump
 z

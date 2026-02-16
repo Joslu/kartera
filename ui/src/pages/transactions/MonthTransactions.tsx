@@ -314,14 +314,14 @@ export default function MonthTransactions() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen theme-app-bg">
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-zinc-900">
               Transacciones del mes
             </h1>
-            <p className="text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-zinc-600">
               Vista completa de movimientos con categoría y método de pago.
             </p>
           </div>
@@ -503,7 +503,7 @@ export default function MonthTransactions() {
                                   {isEditing ? (
                                     <>
                                       <button
-                                        className="h-8 rounded-md bg-zinc-900 px-2 text-xs text-white hover:bg-zinc-800 disabled:opacity-60"
+                                        className="h-8 rounded-md theme-btn-primary px-2 text-xs disabled:opacity-60"
                                         onClick={() => saveEdit(t)}
                                         disabled={savingKey === key}
                                       >

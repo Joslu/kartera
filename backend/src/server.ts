@@ -13,10 +13,15 @@ async function main() {
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true }));
-await app.register(cors, {
-  origin: ["http://localhost:5173"],
-  methods: ["GET", "PATCH", "POST", "DELETE", "OPTIONS"],
-});
+  const corsOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localhost:4173")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  await app.register(cors, {
+    origin: corsOrigins,
+    methods: ["GET", "PATCH", "POST", "DELETE", "OPTIONS"],
+  });
   
 
   await app.register(categoriesRoutes);

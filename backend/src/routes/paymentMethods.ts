@@ -54,10 +54,17 @@ function addMonths(d: Date, months: number) {
   return next;
 }
 
-function toISODate(d: Date) {
+function toISODateLocal(d: Date) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function toISODateUTC(d: Date) {
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -100,6 +107,12 @@ function getCycleRangeForMode(reference: Date, cutoffDay: number, mode?: string)
   return current;
 }
 
+function getMonthRange(reference: Date) {
+  const start = new Date(reference.getFullYear(), reference.getMonth(), 1);
+  const end = new Date(reference.getFullYear(), reference.getMonth() + 1, 0);
+  return { start, end };
+}
+
 function getPaymentWindowFromCycle(range: { start: Date; end: Date }, daysAfterCutoff?: number | null) {
   if (!daysAfterCutoff) return null;
   const start = addDays(range.end, 1);
@@ -133,6 +146,8 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
 
   // GET /payment-methods/balances
   app.get("/payment-methods/balances", async () => {
+    const today = new Date();
+    const range = getMonthRange(today);
     const methods = await prisma.paymentMethod.findMany({
       where: { type: { in: ["DEBIT", "CASH"] }, isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -142,11 +157,11 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
       methods.map(async (pm) => {
         const [incomeAgg, expenseAgg] = await Promise.all([
           prisma.income.aggregate({
-            where: { paymentMethodId: pm.id },
+            where: { paymentMethodId: pm.id, date: { gte: range.start, lte: range.end } },
             _sum: { amount: true },
           }),
           prisma.transaction.aggregate({
-            where: { paymentMethodId: pm.id },
+            where: { paymentMethodId: pm.id, date: { gte: range.start, lte: range.end } },
             _sum: { amount: true },
           }),
         ]);
@@ -371,10 +386,10 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
           dueDay: card.dueDay,
           paymentCategoryId: card.paymentCategoryId,
           paymentCategoryName: card.paymentCategory?.name ?? null,
-          cycleStart: toISODate(range.start),
-          cycleEnd: toISODate(range.end),
-          paymentWindowStart: window ? toISODate(window.start) : null,
-          paymentWindowEnd: window ? toISODate(window.end) : null,
+          cycleStart: toISODateLocal(range.start),
+          cycleEnd: toISODateLocal(range.end),
+          paymentWindowStart: window ? toISODateLocal(window.start) : null,
+          paymentWindowEnd: window ? toISODateLocal(window.end) : null,
           isInPaymentWindow:
             windowStart && windowEnd
               ? todayDate >= windowStart && todayDate <= windowEnd
@@ -436,7 +451,7 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
     const items = [
       ...spent.map((t) => ({
         id: t.id,
-        date: toISODate(t.date instanceof Date ? t.date : new Date(t.date)),
+        date: toISODateUTC(t.date instanceof Date ? t.date : new Date(t.date)),
         amount: decToNumber(t.amount),
         description: t.description,
         kind: "SPENT",
@@ -444,7 +459,7 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
       })),
       ...payments.map((t) => ({
         id: t.id,
-        date: toISODate(t.date instanceof Date ? t.date : new Date(t.date)),
+        date: toISODateUTC(t.date instanceof Date ? t.date : new Date(t.date)),
         amount: decToNumber(t.amount),
         description: t.description,
         kind: "PAYMENT",
@@ -460,15 +475,15 @@ export async function paymentMethodsRoutes(app: FastifyInstance) {
         cutoffDay: card.cutoffDay,
         dueDay: card.dueDay,
         paymentCategoryName: card.paymentCategory?.name ?? null,
-        paymentWindowStart: window ? toISODate(window.start) : null,
-        paymentWindowEnd: window ? toISODate(window.end) : null,
+        paymentWindowStart: window ? toISODateLocal(window.start) : null,
+        paymentWindowEnd: window ? toISODateLocal(window.end) : null,
         isInPaymentWindow:
           windowStart && windowEnd
             ? todayDate >= windowStart && todayDate <= windowEnd
             : false,
       },
-      cycleStart: toISODate(range.start),
-      cycleEnd: toISODate(range.end),
+      cycleStart: toISODateLocal(range.start),
+      cycleEnd: toISODateLocal(range.end),
       items,
     };
   });

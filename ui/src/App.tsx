@@ -10,11 +10,12 @@ import CreditCards from "./pages/cards/CreditCards";
 export default function App() {
   const tabClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-full px-3 py-1.5 text-sm ${
-      isActive ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
+      isActive ? "theme-tab-active" : "theme-tab-idle text-zinc-600"
     }`;
 
   return (
     <div>
+      <div className="theme-top-line" />
       <div className="border-b border-zinc-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-2">
@@ -40,7 +41,9 @@ export default function App() {
               About
             </NavLink>
           </div>
-          <div className="text-sm font-semibold text-zinc-900">Kartera</div>
+          <div className="theme-brand text-lg font-extrabold tracking-wide">
+            Kartera
+          </div>
         </div>
       </div>
 

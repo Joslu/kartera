@@ -482,11 +482,11 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen theme-app-bg">
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-zinc-900">Settings</h1>
-          <p className="text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-zinc-600">
             Administra categorías y grupos disponibles.
           </p>
         </div>
@@ -519,7 +519,7 @@ export default function Settings() {
                   </div>
 
                   <button
-                    className="h-9 w-full rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                    className="h-9 w-full rounded-lg theme-btn-primary px-3 text-sm disabled:opacity-60"
                     onClick={handleCreateGroup}
                     disabled={groupSaving}
                   >
@@ -597,7 +597,7 @@ export default function Settings() {
                   </div>
 
                   <button
-                    className="h-9 w-full rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                    className="h-9 w-full rounded-lg theme-btn-primary px-3 text-sm disabled:opacity-60"
                     onClick={handleCreate}
                     disabled={saving}
                   >
@@ -690,7 +690,7 @@ export default function Settings() {
                                       Cancelar
                                     </button>
                                     <button
-                                      className="h-7 rounded-md bg-zinc-900 px-2 text-xs text-white hover:bg-zinc-800"
+                                      className="h-7 rounded-md theme-btn-primary px-2 text-xs"
                                       onClick={() => handleSaveEditCategory(c)}
                                       disabled={deleteMode}
                                     >
@@ -885,7 +885,7 @@ export default function Settings() {
                   />
                 </div>
                 <button
-                  className="h-9 w-full rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                  className="h-9 w-full rounded-lg theme-btn-primary px-3 text-sm disabled:opacity-60"
                   onClick={handleCreatePaymentMethod}
                   disabled={pmSaving}
                 >
@@ -1035,7 +1035,7 @@ export default function Settings() {
                   </select>
                 </div>
                 <button
-                  className="h-9 w-full rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                  className="h-9 w-full rounded-lg theme-btn-primary px-3 text-sm disabled:opacity-60"
                   onClick={handleCreateCreditCard}
                   disabled={cardSaving}
                 >
@@ -1136,7 +1136,7 @@ export default function Settings() {
                         </div>
                         <div className="mt-3 flex justify-end">
                           <button
-                            className="h-8 rounded-md bg-zinc-900 px-3 text-xs text-white hover:bg-zinc-800 disabled:opacity-60"
+                            className="h-8 rounded-md theme-btn-primary px-3 text-xs disabled:opacity-60"
                             onClick={() => handleSaveCreditCard(card)}
                             disabled={cardSavingId === card.id}
                           >
@@ -1205,7 +1205,7 @@ export default function Settings() {
                     />
                   </div>
                   <button
-                    className="h-9 w-full rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800"
+                    className="h-9 w-full rounded-lg theme-btn-primary px-3 text-sm"
                     onClick={handleCreateMonth}
                   >
                     Crear mes

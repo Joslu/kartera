@@ -105,8 +105,7 @@ export default function InboxUnidentified() {
     const income = Number(summary.income ?? 0);
     const net = Number(summary.net ?? 0);
     const base = income > 0 ? income : Math.max(expenses, 1);
-    const savingAbs = Math.abs(net);
-    const savingPct = Math.min(100, (savingAbs / base) * 100);
+    const savingPct = net > 0 ? Math.min(100, (net / base) * 100) : 0;
     return {
       spentPct: Math.min(100, (expenses / base) * 100),
       remainingPct: Math.max(0, 100 - Math.min(100, (expenses / base) * 100)),
@@ -309,14 +308,14 @@ export default function InboxUnidentified() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen theme-app-bg">
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex items-end gap-4">
           <div className="flex-1">
             <h1 className="text-2xl font-semibold text-zinc-900">
               Inbox: “No identificado”
             </h1>
-            <p className="text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-zinc-600">
               Regla: “No identificado” es temporal; recategoriza aquí para
               limpiar el mes.
             </p>
@@ -425,7 +424,7 @@ export default function InboxUnidentified() {
               <CardHeader>
                 <div className="text-sm font-medium text-zinc-900">
                   {summary
-                    ? `RESUMEN · ${summary.monthLabel.toUpperCase()}`
+                    ? `${summary.monthLabel.toUpperCase()}`
                     : "Resumen"}
                 </div>
                 <div className="text-xs text-zinc-600">
@@ -454,13 +453,13 @@ export default function InboxUnidentified() {
                     <div className="pt-2 space-y-2">
                       <div className="flex items-center gap-2 text-[11px] text-zinc-500">
                         <div className="w-16">💸 Gasto</div>
-                        <div className="h-2 flex-1 rounded-full bg-zinc-100 overflow-hidden">
+                        <div className="theme-chart-track h-2 flex-1 rounded-full overflow-hidden">
                           <div
-                            className="h-2 bg-rose-500"
+                            className="theme-chart-primary h-2"
                             style={{ width: `${spendControl.spentPct}%` }}
                           />
                           <div
-                            className="h-2 bg-emerald-500"
+                            className="theme-chart-secondary h-2"
                             style={{ width: `${spendControl.remainingPct}%` }}
                           />
                         </div>
@@ -468,12 +467,12 @@ export default function InboxUnidentified() {
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-zinc-500">
                         <div className="w-16">💰 Ahorro</div>
-                        <div className="h-2 flex-1 rounded-full bg-zinc-100 overflow-hidden">
+                        <div className="theme-chart-track h-2 flex-1 rounded-full overflow-hidden">
                           <div
                             className={`h-2 ${
                               spendControl.savingNegative
-                                ? "bg-amber-500"
-                                : "bg-emerald-500"
+                                ? "theme-chart-tertiary"
+                                : "theme-chart-secondary"
                             }`}
                             style={{ width: `${spendControl.savingPct}%` }}
                           />
@@ -521,9 +520,9 @@ export default function InboxUnidentified() {
                                 {money(item.spent)} · {pct}%
                               </div>
                             </div>
-                            <div className="h-2 w-full rounded-full bg-zinc-100">
+                            <div className="theme-chart-track h-2 w-full rounded-full">
                               <div
-                                className="h-2 rounded-full bg-zinc-900"
+                                className="theme-chart-primary h-2 rounded-full"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -584,16 +583,16 @@ export default function InboxUnidentified() {
                                 cx="40"
                                 cy="40"
                                 r={donut.radius}
+                                className="theme-chart-stroke-track"
                                 fill="none"
-                                stroke="#e4e4e7"
                                 strokeWidth="10"
                               />
                               <circle
                                 cx="40"
                                 cy="40"
                                 r={donut.radius}
+                                className="theme-chart-stroke-secondary"
                                 fill="none"
-                                stroke="#10b981"
                                 strokeWidth="10"
                                 strokeDasharray={donut.categorizedDash}
                               />
@@ -601,8 +600,8 @@ export default function InboxUnidentified() {
                                 cx="40"
                                 cy="40"
                                 r={donut.radius}
+                                className="theme-chart-stroke-primary"
                                 fill="none"
-                                stroke="#18181b"
                                 strokeWidth="10"
                                 strokeDasharray={donut.unidentifiedDash}
                                 strokeDashoffset={donut.unidentifiedOffset}
@@ -611,11 +610,11 @@ export default function InboxUnidentified() {
                           </div>
                           <div className="space-y-1 text-xs text-zinc-600">
                             <div className="flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-zinc-900" />
+                              <span className="theme-chart-primary h-2 w-2 rounded-full" />
                               No identificado {donut.pctUnidentifiedLabel}%
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                              <span className="theme-chart-secondary h-2 w-2 rounded-full" />
                               Categorizado {donut.pctCategorizedLabel}%
                             </div>
                           </div>

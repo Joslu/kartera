@@ -60,6 +60,11 @@ export default function CreditCards() {
     message: string;
   } | null>(null);
 
+  const monthLabel = (() => {
+    const now = new Date();
+    return new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(now);
+  })();
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -127,12 +132,12 @@ export default function CreditCards() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen theme-app-bg">
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-zinc-900">Tarjetas</h1>
-          <p className="text-sm text-zinc-600">
-            Deuda actual del ciclo segun fecha de corte.
+          <p className="mt-2 text-sm text-zinc-600">
+            Crédito por ciclo de corte. Débito solo mes actual.
           </p>
         </div>
 
@@ -157,7 +162,7 @@ export default function CreditCards() {
               <button
                 className={`h-8 rounded-full px-3 text-xs ${
                   cycleMode === "current"
-                    ? "bg-zinc-900 text-white"
+                    ? "theme-btn-primary"
                     : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
                 }`}
                 onClick={() => setCycleMode("current")}
@@ -167,7 +172,7 @@ export default function CreditCards() {
               <button
                 className={`h-8 rounded-full px-3 text-xs ${
                   cycleMode === "previous"
-                    ? "bg-zinc-900 text-white"
+                    ? "theme-btn-primary"
                     : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
                 }`}
                 onClick={() => setCycleMode("previous")}
@@ -186,35 +191,24 @@ export default function CreditCards() {
                 {cards.map((c) => (
                   <div
                     key={c.id}
-                    className="rounded-lg border border-zinc-200 bg-white px-4 py-3"
+                    className="theme-card rounded-lg px-4 py-3"
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-semibold text-zinc-900">
                         {c.paymentMethodName}
                       </div>
                       <div className="flex items-center gap-2">
-                        {c.isInPaymentWindow ? (
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">
-                            Periodo de pago
-                          </span>
-                        ) : null}
                         <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
                           Corte {c.cutoffDay}
                         </span>
                       </div>
                     </div>
                     <div className="mt-2 text-xs text-zinc-600">
-                      Ciclo {formatDate(c.cycleStart)} - {formatDate(c.cycleEnd)}
+                      Mes {formatDate(c.cycleStart)} - {formatDate(c.cycleEnd)}
                     </div>
                     {typeof c.dueDay === "number" ? (
                       <div className="mt-1 text-[11px] text-zinc-500">
-                        Pago +{c.dueDay} dias
-                      </div>
-                    ) : null}
-                    {c.paymentWindowStart && c.paymentWindowEnd ? (
-                      <div className="mt-1 text-[11px] text-zinc-500">
-                        Pago {formatDate(c.paymentWindowStart)} -{" "}
-                        {formatDate(c.paymentWindowEnd)}
+                        Vencimiento +{c.dueDay} dias
                       </div>
                     ) : null}
                     <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
@@ -265,7 +259,7 @@ export default function CreditCards() {
                         </div>
                         {cycleMap[c.id].items.length === 0 ? (
                           <div className="text-xs text-zinc-500">
-                            No hay movimientos en el ciclo.
+                            No hay movimientos en el mes.
                           </div>
                         ) : (
                           <div className="space-y-2">
@@ -316,7 +310,7 @@ export default function CreditCards() {
                   </div>
                 </div>
                 <div className="text-xs text-zinc-600">
-                  {debitBalances.length} cuentas
+                  {monthLabel} · {debitBalances.length} cuentas
                 </div>
               </div>
             </CardHeader>
@@ -332,7 +326,7 @@ export default function CreditCards() {
                   {debitBalances.map((d) => (
                     <div
                       key={d.id}
-                      className="rounded-lg border border-zinc-200 bg-white px-4 py-3"
+                      className="theme-card rounded-lg px-4 py-3"
                     >
                       <div className="text-sm font-semibold text-zinc-900">
                         {d.name}

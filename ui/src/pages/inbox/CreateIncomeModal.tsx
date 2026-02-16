@@ -138,7 +138,7 @@ export function CreateIncomeModal({
             Cancelar
           </button>
           <button
-            className="h-9 rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="h-9 rounded-lg theme-btn-primary px-3 text-sm disabled:opacity-60"
             onClick={submit}
             disabled={!canSubmit}
           >

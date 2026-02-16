@@ -126,6 +126,64 @@ UI por defecto en `http://localhost:5173`
 
 ---
 
+## 🚀 Uso diario (scripts)
+
+Para trabajar diario sin repetir comandos, usa estos scripts desde la raiz del repo:
+
+```bash
+# primer setup (solo la primera vez o cuando cambie dependencias)
+./scripts/setup.sh
+
+# modo desarrollo (hot reload backend + ui)
+./scripts/dev.sh
+
+# modo produccion local (backend start + ui build/preview)
+./scripts/prod-local.sh
+
+# apagar solo la base de datos docker
+./scripts/stop-db.sh
+```
+
+Puertos por defecto:
+- API: `http://localhost:3000`
+- UI dev: `http://localhost:5173`
+- UI prod local: `http://localhost:4173`
+
+Variables opcionales para `prod-local.sh`:
+
+```bash
+API_PORT=3001 UI_PORT=4174 ./scripts/prod-local.sh
+```
+
+---
+
+## 💾 Backup y restore de DB
+
+Crear respaldo:
+
+```bash
+./scripts/backup-db.sh
+```
+
+Esto genera un archivo en `backups/` con timestamp, por ejemplo:
+`backups/budget_20260216_211500.dump`
+
+Tambien puedes indicar ruta/nombre:
+
+```bash
+./scripts/backup-db.sh backups/mi_copia.dump
+```
+
+Restaurar respaldo:
+
+```bash
+./scripts/restore-db.sh backups/budget_20260216_211500.dump
+```
+
+Nota: el restore usa `--clean --if-exists`, por lo que reemplaza objetos existentes en la base actual.
+
+---
+
 ## ▶️ Cómo correr el proyecto
 
 ### 1) Infraestructura

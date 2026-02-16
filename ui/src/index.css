@@ -4,8 +4,127 @@
 
 :root {
   color-scheme: light;
+  --theme-1: #45214a;
+  --theme-2: #323050;
+  --theme-3: #21445b;
+  --theme-4: #1a6566;
+  --theme-accent: var(--theme-1);
+  --theme-accent-hover: var(--theme-2);
+  --theme-accent-soft: rgba(69, 33, 74, 0.12);
+  --theme-brand: var(--theme-1);
+  --theme-card-bg: #ffffff;
+  --theme-card-border: #e2e8ec;
+  --theme-card-title: #323050;
+  --theme-card-muted: #5f6673;
+  --theme-card-soft: #f7f3f8;
+  --theme-chart-track: #e2e8ec;
+  --theme-chart-primary: var(--theme-1);
+  --theme-chart-secondary: var(--theme-4);
+  --theme-chart-tertiary: var(--theme-3);
 }
 
 html, body, #root {
   height: 100%;
+}
+
+body {
+  font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.theme-top-line {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--theme-1) 0%,
+    var(--theme-2) 33%,
+    var(--theme-3) 66%,
+    var(--theme-4) 100%
+  );
+}
+
+.theme-tab-active {
+  background-color: var(--theme-accent);
+  color: #ffffff;
+}
+
+.theme-tab-idle:hover {
+  background-color: var(--theme-accent-soft);
+}
+
+.theme-btn-primary {
+  background-color: var(--theme-accent);
+  color: #ffffff;
+}
+
+.theme-btn-primary:hover {
+  background-color: var(--theme-accent-hover);
+}
+
+.theme-brand {
+  color: var(--theme-brand);
+}
+
+
+.theme-app-bg {
+  background-color: #f6f3f7;
+}
+
+.theme-card {
+  border: 1px solid var(--theme-card-border);
+  background-color: var(--theme-card-bg);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.theme-card-header {
+  border-bottom: 1px solid var(--theme-card-border);
+}
+
+.theme-card-title {
+  color: var(--theme-card-title);
+}
+
+.theme-card-muted {
+  color: var(--theme-card-muted);
+}
+
+.theme-card-soft {
+  background-color: var(--theme-card-soft);
+}
+
+.theme-card .text-zinc-900 {
+  color: var(--theme-card-title);
+}
+
+.theme-card .text-zinc-700,
+.theme-card .text-zinc-600,
+.theme-card .text-zinc-500 {
+  color: var(--theme-card-muted);
+}
+
+.theme-chart-track {
+  background-color: var(--theme-chart-track);
+}
+
+.theme-chart-primary {
+  background-color: var(--theme-chart-primary);
+}
+
+.theme-chart-secondary {
+  background-color: var(--theme-chart-secondary);
+}
+
+.theme-chart-tertiary {
+  background-color: var(--theme-chart-tertiary);
+}
+
+.theme-chart-stroke-track {
+  stroke: var(--theme-chart-track);
+}
+
+.theme-chart-stroke-primary {
+  stroke: var(--theme-chart-primary);
+}
+
+.theme-chart-stroke-secondary {
+  stroke: var(--theme-chart-secondary);
 }

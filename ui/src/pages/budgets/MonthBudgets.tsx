@@ -269,14 +269,14 @@ export default function MonthBudgets() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen theme-app-bg">
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-zinc-900">
               Presupuesto del mes
             </h1>
-            <p className="text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-zinc-600">
               Define asignaciones por categoría y revisa disponible vs gasto.
             </p>
           </div>
@@ -290,19 +290,19 @@ export default function MonthBudgets() {
         </div>
 
         <div className="mb-4 grid gap-3 md:grid-cols-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="theme-card rounded-2xl p-4">
             <div className="text-xs text-zinc-600">Ingresos</div>
             <div className="text-lg font-semibold text-zinc-900">
               {money(totals.income)}
             </div>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="theme-card rounded-2xl p-4">
             <div className="text-xs text-zinc-600">Asignado</div>
             <div className="text-lg font-semibold text-zinc-900">
               {money(totals.assigned)}
             </div>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="theme-card rounded-2xl p-4">
             <div className="text-xs text-zinc-600">Disponible para asignar</div>
             <div
               className={`text-lg font-semibold ${
@@ -312,13 +312,13 @@ export default function MonthBudgets() {
               {money(totals.available)}
             </div>
             <div className="mt-2">
-              <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden">
+              <div className="theme-chart-track h-2 w-full rounded-full overflow-hidden">
                 <div
-                  className="h-2 bg-zinc-900"
+                  className="theme-chart-primary h-2"
                   style={{ width: `${totals.assignedPct}%` }}
                 />
                 <div
-                  className="h-2 bg-emerald-500"
+                  className="theme-chart-secondary h-2"
                   style={{ width: `${totals.remainingPct}%` }}
                 />
               </div>
@@ -328,7 +328,7 @@ export default function MonthBudgets() {
               </div>
             </div>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="theme-card rounded-2xl p-4">
             <div className="text-xs text-zinc-600">Gasto del mes</div>
             <div className="text-lg font-semibold text-zinc-900">
               {money(totals.spent)}
@@ -379,15 +379,15 @@ export default function MonthBudgets() {
                         </span>
                       </div>
                       <div className="space-y-1">
-                        <div className="h-2 w-full rounded-full bg-zinc-100">
+                        <div className="theme-chart-track h-2 w-full rounded-full">
                           <div
-                            className="h-2 rounded-full bg-zinc-900"
+                            className="theme-chart-primary h-2 rounded-full"
                             style={{ width: `${assignedPct}%` }}
                           />
                         </div>
-                        <div className="h-2 w-full rounded-full bg-zinc-100">
+                        <div className="theme-chart-track h-2 w-full rounded-full">
                           <div
-                            className="h-2 rounded-full bg-emerald-500"
+                            className="theme-chart-secondary h-2 rounded-full"
                             style={{ width: `${spentPct}%` }}
                           />
                         </div>
@@ -397,11 +397,11 @@ export default function MonthBudgets() {
                 })}
                 <div className="flex items-center gap-3 text-xs text-zinc-500">
                   <span className="inline-flex items-center gap-2">
-                    <span className="h-2 w-4 rounded-full bg-zinc-900" />
+                    <span className="theme-chart-primary h-2 w-4 rounded-full" />
                     Asignado
                   </span>
                   <span className="inline-flex items-center gap-2">
-                    <span className="h-2 w-4 rounded-full bg-emerald-500" />
+                    <span className="theme-chart-secondary h-2 w-4 rounded-full" />
                     Gastado
                   </span>
                 </div>
@@ -487,9 +487,9 @@ export default function MonthBudgets() {
                             </td>
                             <td className="py-3 pr-3">
                               <div className="flex items-center gap-2 text-xs text-zinc-500">
-                                <div className="h-2 w-24 rounded-full bg-zinc-100">
+                                <div className="theme-chart-track h-2 w-24 rounded-full">
                                   <div
-                                    className="h-2 rounded-full bg-emerald-500"
+                                    className="theme-chart-secondary h-2 rounded-full"
                                     style={{ width: `${progress}%` }}
                                   />
                                 </div>
@@ -498,7 +498,7 @@ export default function MonthBudgets() {
                             </td>
                             <td className="py-3 text-right">
                               <button
-                                className="h-9 rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                                className="h-9 rounded-lg theme-btn-primary px-3 text-sm disabled:opacity-60"
                                 onClick={() => handleSave(row)}
                                 disabled={
                                   !isEditable ||
@@ -628,7 +628,7 @@ export default function MonthBudgets() {
                               </td>
                               <td className="py-3 text-right">
                                 <button
-                                  className="h-9 rounded-lg bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                                  className="h-9 rounded-lg theme-btn-primary px-3 text-sm disabled:opacity-60"
                                   onClick={() => handleSave(row)}
                                   disabled={
                                     !isEditable ||
